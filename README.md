@@ -1,0 +1,114 @@
+# ANAHKEN's Modular Snake Game
+
+A classic implementation of the Snake game, built with Python and Pygame, featuring a clean, modular, and easily customizable code structure.
+
+*(You can replace the image below with a GIF of your game in action!)*
+
+![Gameplay GIF placeholder](https://via.placeholder.com/600x400.png?text=Snake+Game+In+Action)
+
+## Features
+
+*   **Classic Snake Gameplay**: Eat food to grow longer and increase your score.
+*   **In-Game Settings Menu**: Customize snake color and configure keybindings directly within the game.
+*   **Modern & Resizable Window**: Start at any size and resize the window on the fly. The game grid adapts automatically.
+*   **Persistent High Score**: Your best score is automatically saved in your user profile's AppData folder.
+*   **Sound Effects**: Audio feedback for eating food and game over.
+*   **Clean, Modular Code**: The project is split into logical modules, making it easy to understand and extend.
+*   **Easy Customization**: Tweak game speed, colors, block size, and more by editing the `settings.py` file.
+*   **Robust Startup**: Includes pre-run checks for the required Python version and Pygame installation to help users troubleshoot.
+*   **Ready for Distribution**: Contains logic to correctly find assets (`.wav` files) when bundled into a single executable with tools like PyInstaller.
+
+## Requirements
+
+To run the game from the source code, you will need:
+
+*   **Python 3.8+**
+*   **Pygame 2.0+**
+
+The game will show a friendly error message if these are not installed correctly.
+
+## How to Run
+
+There are two ways to play the game.
+
+### From an Executable (Easiest)
+
+If you have a `.exe` version of the game:
+1.  Double-click the `.exe` file.
+2.  Your high score will be saved automatically in `%APPDATA%\ANAHKENsSnake\`.
+
+### From the Source Code
+
+1.  **Clone or download the repository:**
+    ```sh
+    # Not a real git repo, for demonstration purposes
+    git clone https://github.com/your-username/modular-snake.git
+    cd modular-snake
+    ```
+
+2.  **Install Pygame:**
+    Open your terminal or command prompt and run:
+    ```sh
+    pip install pygame
+    ```
+
+3.  **Run the game:**
+    Execute the `main.py` script:
+    ```sh
+    python main.py
+    ```
+    *(Note: Thanks to a robust launcher script, you can actually run any of the project's `.py` files to start the game.)*
+
+## Customization
+
+The game now offers two levels of customization:
+
+### In-Game Settings
+From the main menu, you can enter the **Settings** screen to:
+*   Change the **Snake Color**.
+*   **Configure Controls** for up, down, left, and right movements.
+
+These settings are saved automatically in a `settings.dat` file in your AppData folder.
+
+### Code-Level Settings (`settings.py`)
+For more advanced changes, you can edit the `settings.py` file to modify:
+*   **Game Speed**: Change `startSpeed` to make the game begin faster or slower.
+*   **Grid Layout**: Change `gridWidth` and `gridHeight` to alter the number of blocks in the play area.
+*   **Food Properties**: Adjust colors, scores, and spawn chances for different food types.
+*   **Default Fonts and Colors**: Change the look and feel of the UI.
+
+## File Structure
+
+The project is organized into several files, each with a specific responsibility:
+
+*   `main.py`: The main entry point of the application. It contains the main game loop and manages the overall game state (Main Menu, Playing, Game Over).
+*   `settings.py`: A central configuration file. Contains all constants like colors, window dimensions, file paths, fonts, and loaded assets.
+*   `game_controller.py`: Manages a single game session. It holds the snake and food objects, tracks the score, and handles the core update logic (movement, eating, collisions).
+*   `game_entities.py`: Defines the classes for the objects in the game: `Snake` and `Food`. These classes manage their own state and drawing logic.
+*   `ui.py`: Contains simple functions for drawing UI elements to the screen, such as the main menu, game over screen, and score display.
+*   `score_manager.py`: A utility module for loading and saving the obfuscated high score file (`highscore.dat`).
+*   `settings_manager.py`: A utility module for loading and saving the user's custom settings (`settings.dat`).
+*   `assets/`: A folder containing subdirectories for all game assets (e.g., `sounds/`, `images/`).
+
+## Building from Source
+
+This project is set up to be easily bundled into a single executable using **PyInstaller**.
+
+1.  **Install PyInstaller:**
+    ```sh
+    pip install pyinstaller
+    ```
+
+2.  **Run the PyInstaller command:**
+    Open a terminal in the project directory and run the following command. The `--add-data` flags are crucial for including the sound files.
+    The simplest way is to copy the entire `assets` folder.
+    ```sh
+    pyinstaller --onefile --windowed --name "SnakeGame" --add-data "assets;assets" main.py
+    ```
+
+3.  **Find your executable:**
+    PyInstaller will create a `dist` folder containing `SnakeGame.exe`. This file can be shared and run on other Windows machines without needing Python or Pygame installed.
+
+## License
+
+This project is open source and available under the MIT License.
