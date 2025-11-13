@@ -2,9 +2,8 @@
 
 A classic implementation of the Snake game, built with Python and Pygame, featuring a clean, modular, and easily customizable code structure.
 
-*(You can replace the image below with a GIF of your game in action!)*
+![A player playing ANAHKEN's Modular Snake Game.](https://github.com/user-attachments/assets/0a8ca9b5-dd17-482f-8d38-268852190e6d)
 
-![Gameplay GIF placeholder](https://via.placeholder.com/600x400.png?text=Snake+Game+In+Action)
 
 ## Features
 
@@ -110,5 +109,6 @@ This project is set up to be easily bundled into a single executable using **PyI
     PyInstaller will create a `dist` folder containing `SnakeGame.exe`. This file can be shared and run on other Windows machines without needing Python or Pygame installed.
 
 ## License
+
 
 This project is open source and available under the MIT License.
