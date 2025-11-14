@@ -144,6 +144,10 @@ def main():
                 settings.window = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE | pygame.DOUBLEBUF)
                 # Recalculate all dynamic sizes and offsets
                 update_dynamic_dimensions(settings.window)
+                # --- [FIX] Force entities to update their internal scaling ---
+                # This tells the snake and food to rescale their sprites on the next frame.
+                game.snake.last_block_size = -1
+                game.food.last_block_size = -1
 
             # --- Get mouse position once per frame ---
             mouse_pos = pygame.mouse.get_pos()
@@ -260,10 +264,19 @@ def main():
         # --- Game Logic & Drawing ---
         
         # Clear the screen
-        settings.window.fill(settings.black)
+        # --- [NEW] Draw border and background ---
+        # 1. Fill the entire window with the border color.
+        settings.window.fill(settings.borderColor)
+        # 2. Draw the game area background on top, creating the letterbox effect. 
+        # --- [FIX] Ensure all rect dimensions are integers to prevent rounding errors ---
+        # This guarantees the background aligns perfectly with the grid.
+        game_area_rect = pygame.Rect(
+            int(settings.xOffset), int(settings.yOffset), int(settings.width), int(settings.height)
+        )
+        pygame.draw.rect(settings.window, settings.backgroundColor, game_area_rect)
 
         if current_state == GameState.MAIN_MENU:
-            menu_buttons = ui.draw_main_menu(settings.window) # Returns dict of buttons
+            menu_buttons = ui.draw_main_menu(settings.window)
         
         elif current_state == GameState.COLOR_SETTINGS:
             settings_buttons = ui.draw_settings_menu(settings.window, color_names[current_color_index]) # Returns dict of buttons

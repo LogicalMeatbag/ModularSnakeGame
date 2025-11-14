@@ -23,8 +23,6 @@ To run the game from the source code, you will need:
 *   **Python 3.8+**
 *   **Pygame 2.0+**
 
-The game will show a friendly error message if these are not installed correctly.
-
 ## How to Run
 
 There are two ways to play the game.

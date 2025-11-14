@@ -26,7 +26,7 @@ def draw_main_menu(surface):
     # Play Button
     play_rect = pygame.Rect(0, 0, 200, 50)
     play_rect.center = (win_w / 2, win_h * 0.5)
-    play_color = settings.white if play_rect.collidepoint(mouse_pos) else settings.grey
+    play_color = settings.white if play_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, play_color, play_rect, 2, 5)
     play_surface = settings.scoreFont.render("Play", True, play_color)
     surface.blit(play_surface, play_surface.get_rect(center=play_rect.center))
@@ -34,7 +34,7 @@ def draw_main_menu(surface):
     # Settings Button
     settings_rect = pygame.Rect(0, 0, 200, 50)
     settings_rect.center = (win_w / 2, win_h * 0.65)
-    settings_color = settings.white if settings_rect.collidepoint(mouse_pos) else settings.grey
+    settings_color = settings.white if settings_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, settings_color, settings_rect, 2, 5)
     settings_surface = settings.scoreFont.render("Settings", True, settings_color)
     surface.blit(settings_surface, settings_surface.get_rect(center=settings_rect.center))
@@ -42,7 +42,7 @@ def draw_main_menu(surface):
     # Quit Button
     quit_rect = pygame.Rect(0, 0, 200, 50)
     quit_rect.center = (win_w / 2, win_h * 0.8)
-    quit_color = settings.white if quit_rect.collidepoint(mouse_pos) else settings.grey
+    quit_color = settings.white if quit_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, quit_color, quit_rect, 2, 5)
     quit_surface = settings.scoreFont.render("Quit", True, quit_color)
     surface.blit(quit_surface, quit_surface.get_rect(center=quit_rect.center))
@@ -68,7 +68,7 @@ def draw_settings_menu(surface, current_color_name):
     # Left Arrow
     left_arrow_rect = pygame.Rect(0, 0, 50, 50)
     left_arrow_rect.center = (win_w / 2 - 150, win_h * 0.5)
-    left_arrow_color = settings.white if left_arrow_rect.collidepoint(mouse_pos) else settings.grey
+    left_arrow_color = settings.white if left_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
     left_arrow_surf = settings.scoreFont.render("<", True, left_arrow_color)
     surface.blit(left_arrow_surf, left_arrow_surf.get_rect(center=left_arrow_rect.center))
 
@@ -79,14 +79,14 @@ def draw_settings_menu(surface, current_color_name):
     # Right Arrow
     right_arrow_rect = pygame.Rect(0, 0, 50, 50)
     right_arrow_rect.center = (win_w / 2 + 150, win_h * 0.5)
-    right_arrow_color = settings.white if right_arrow_rect.collidepoint(mouse_pos) else settings.grey
+    right_arrow_color = settings.white if right_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
     right_arrow_surf = settings.scoreFont.render(">", True, right_arrow_color)
     surface.blit(right_arrow_surf, right_arrow_surf.get_rect(center=right_arrow_rect.center))
 
     # Keybinds Button
     keybinds_rect = pygame.Rect(0, 0, 250, 50)
     keybinds_rect.center = (win_w / 2, win_h * 0.7)
-    keybinds_color = settings.white if keybinds_rect.collidepoint(mouse_pos) else settings.grey
+    keybinds_color = settings.white if keybinds_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, keybinds_color, keybinds_rect, 2, 5)
     keybinds_surface = settings.scoreFont.render("Configure Controls", True, keybinds_color)
     surface.blit(keybinds_surface, keybinds_surface.get_rect(center=keybinds_rect.center))
@@ -94,7 +94,7 @@ def draw_settings_menu(surface, current_color_name):
     # Save Button
     save_rect = pygame.Rect(0, 0, 250, 50)
     save_rect.center = (win_w / 2, win_h * 0.85)
-    save_color = settings.white if save_rect.collidepoint(mouse_pos) else settings.grey
+    save_color = settings.white if save_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, save_color, save_rect, 2, 5)
     save_surface = settings.scoreFont.render("Back to Menu", True, save_color)
     surface.blit(save_surface, save_surface.get_rect(center=save_rect.center))
@@ -135,7 +135,7 @@ def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
         # Highlight if selected or hovered
         is_hovered = key_rect.collidepoint(mouse_pos)
         is_selected = selected_action == action
-        key_color = settings.snakeColor if is_selected else (settings.white if is_hovered else settings.grey)
+        key_color = settings.snakeColor if is_selected else (settings.white if is_hovered else settings.uiElementColor)
         
         pygame.draw.rect(surface, key_color, key_rect, 2, 5)
         key_surface = settings.smallFont.render(key_text, True, key_color)
@@ -146,7 +146,7 @@ def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
     # Save Button
     save_rect = pygame.Rect(0, 0, 250, 50)
     save_rect.center = (win_w / 2, win_h * 0.85)
-    save_color = settings.white if save_rect.collidepoint(mouse_pos) else settings.grey
+    save_color = settings.white if save_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, save_color, save_rect, 2, 5)
     save_surface = settings.scoreFont.render("Save & Back", True, save_color)
     surface.blit(save_surface, save_surface.get_rect(center=save_rect.center))
@@ -176,7 +176,7 @@ def draw_game_over_screen(surface, score, high_score):
     # Restart Button
     restart_rect = pygame.Rect(0, 0, 200, 50)
     restart_rect.center = (win_w / 2, win_h * 0.65)
-    restart_color = settings.white if restart_rect.collidepoint(mouse_pos) else settings.grey
+    restart_color = settings.white if restart_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, restart_color, restart_rect, 2, 5)
     restart_surface = settings.scoreFont.render("Restart", True, restart_color)
     surface.blit(restart_surface, restart_surface.get_rect(center=restart_rect.center))
@@ -184,7 +184,7 @@ def draw_game_over_screen(surface, score, high_score):
     # Quit Button
     quit_rect = pygame.Rect(0, 0, 200, 50)
     quit_rect.center = (win_w / 2, win_h * 0.8)
-    quit_color = settings.white if quit_rect.collidepoint(mouse_pos) else settings.grey
+    quit_color = settings.white if quit_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, quit_color, quit_rect, 2, 5)
     quit_surface = settings.scoreFont.render("Quit", True, quit_color)
     surface.blit(quit_surface, quit_surface.get_rect(center=quit_rect.center))

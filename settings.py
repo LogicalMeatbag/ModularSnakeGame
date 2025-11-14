@@ -64,17 +64,19 @@ clock = pygame.time.Clock()
 
 # --- COLORS ---
 white = (255, 255, 255) # General UI text
-black = (0, 0, 0)   # Background
-grey = (100, 100, 100)  # For UI elements
+backgroundColor = (0, 0, 0) # The play area background
+borderColor = (40, 40, 40) # The color of the letterbox border
+uiElementColor = (100, 100, 100)  # For UI elements like inactive buttons
 
 # --- [NEW] PRE-DEFINED COLOR OPTIONS FOR SETTINGS MENU ---
 colorOptions = {
+# These are RGB color values for snake colors. 
     "Green": (0, 255, 0),
     "Blue": (0, 100, 255),
     "Purple": (148, 0, 211),
     "Orange": (255, 165, 0),
     "Pink": (255, 105, 180),
-    "Cyan": (0, 255, 255),    
+    "Cyan": (0, 255, 255), 
 }
 
 # --- [NEW] Special Food Settings ---

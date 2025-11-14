@@ -17,16 +17,14 @@ class Snake:
 
     def reset(self):
         """Resets the snake to its starting position and state."""
-        # --- [CLEANUP] Center the snake using the fixed grid dimensions for consistency ---
-        start_x = (settings.gridWidth // 2) * settings.blockSize
-        start_y = (settings.gridHeight // 2) * settings.blockSize
+        # --- [REFACTOR] Use grid coordinates instead of pixels ---
+        start_x = settings.gridWidth // 2
+        start_y = settings.gridHeight // 2
         self.pos = [start_x, start_y]
         self.direction = 'RIGHT'
         self.change_to = self.direction
         
-        # The head is at start_x, and since we start moving RIGHT,
-        # the second segment (the initial tail) should be one block to the LEFT.
-        segment2_x = start_x - settings.blockSize
+        segment2_x = start_x - 1 # One block to the left
         
         self.body = [[start_x, start_y], [segment2_x, start_y]]
 
@@ -47,13 +45,13 @@ class Snake:
         self.direction = self.change_to
         
         if self.direction == 'UP':
-            self.pos[1] -= settings.blockSize
+            self.pos[1] -= 1
         elif self.direction == 'DOWN':
-            self.pos[1] += settings.blockSize
+            self.pos[1] += 1
         elif self.direction == 'LEFT':
-            self.pos[0] -= settings.blockSize
+            self.pos[0] -= 1
         elif self.direction == 'RIGHT':
-            self.pos[0] += settings.blockSize
+            self.pos[0] += 1
 
         # The snake's head always moves to the new position.
         self.body.insert(0, list(self.pos))
@@ -69,19 +67,17 @@ class Snake:
 
     def check_collision(self):
         """Checks for wall collisions or self-collisions."""
-        # Wall collision
-        
         # Self-collision
         for block in self.body[1:]:
             if self.pos[0] == block[0] and self.pos[1] == block[1]:
                 return True
-        
         return False
     
     def check_wall_collision(self):
         """Checks only for wall collisions. Separated for clarity."""
-        if (self.pos[0] < 0 or self.pos[0] >= settings.width or
-            self.pos[1] < 0 or self.pos[1] >= settings.height):
+        # --- [REFACTOR] Check against grid dimensions ---
+        if (self.pos[0] < 0 or self.pos[0] >= settings.gridWidth or
+            self.pos[1] < 0 or self.pos[1] >= settings.gridHeight):
             return True
 
     def get_head_pos(self):
@@ -139,10 +135,10 @@ class Snake:
         for index, segment in enumerate(self.body):
             # The segment's screen position
             # --- [FINAL FIX] Use integers for all rect calculations ---
-            # This prevents floating-point truncation and rounding errors.
+            # --- [REFACTOR] Convert grid coordinates to screen pixels here ---
             rect = pygame.Rect(
-                int(segment[0] + settings.xOffset), 
-                int(segment[1] + settings.yOffset), 
+                int(segment[0] * self.last_block_size + settings.xOffset), 
+                int(segment[1] * self.last_block_size + settings.yOffset), 
                 self.last_block_size, # Use the guaranteed integer size
                 self.last_block_size
             )
@@ -238,8 +234,8 @@ class Food:
 
         while True:
             pos = [
-                random.randrange(0, settings.gridWidth) * settings.blockSize,
-                random.randrange(0, settings.gridHeight) * settings.blockSize
+                random.randrange(0, settings.gridWidth),
+                random.randrange(0, settings.gridHeight)
             ]
             if pos not in occupied_positions:
                 if food_type == 'normal':
@@ -305,9 +301,10 @@ class Food:
         self._update_scaled_images() # Ensure sprites are the correct size
 
         for item in self.items:
+            # --- [REFACTOR] Convert grid coordinates to screen pixels here ---
             rect = pygame.Rect(
-                int(item['pos'][0] + settings.xOffset), 
-                int(item['pos'][1] + settings.yOffset), 
+                int(item['pos'][0] * self.last_block_size + settings.xOffset), 
+                int(item['pos'][1] * self.last_block_size + settings.yOffset), 
                 self.last_block_size, 
                 self.last_block_size
             )
