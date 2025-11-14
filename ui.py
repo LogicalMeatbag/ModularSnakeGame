@@ -154,6 +154,73 @@ def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
 
     return buttons
 
+def draw_custom_color_menu(surface, temp_color):
+    """Draws the UI for creating a custom RGB color."""
+    win_w, win_h = surface.get_size()
+    mouse_pos = pygame.mouse.get_pos()
+    buttons = {}
+
+    # Title
+    title_surface = settings.titleFont.render("Custom Color", True, settings.white)
+    title_rect = title_surface.get_rect(center=(win_w / 2, win_h * 0.15))
+    surface.blit(title_surface, title_rect)
+
+    # Color Preview
+    preview_rect = pygame.Rect(0, 0, 100, 100)
+    preview_rect.center = (win_w / 2, win_h * 0.3)
+    pygame.draw.rect(surface, temp_color, preview_rect)
+    pygame.draw.rect(surface, settings.white, preview_rect, 2, 5) # Border
+
+    # RGB Sliders
+    y_pos = win_h * 0.5
+    for i, component in enumerate(['R', 'G', 'B']):
+        # Label (R, G, or B)
+        label_surface = settings.scoreFont.render(component, True, settings.white)
+        surface.blit(label_surface, label_surface.get_rect(midright=(win_w / 2 - 170, y_pos)))
+
+        # Value
+        value_surface = settings.scoreFont.render(str(temp_color[i]), True, settings.white)
+        surface.blit(value_surface, value_surface.get_rect(center=(win_w / 2, y_pos)))
+
+        # Decrement Button
+        dec_rect = pygame.Rect(0, 0, 50, 40)
+        dec_rect.center = (win_w / 2 - 100, y_pos)
+        dec_color = settings.white if dec_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        pygame.draw.rect(surface, dec_color, dec_rect, 2, 5)
+        dec_surf = settings.scoreFont.render("-", True, dec_color)
+        surface.blit(dec_surf, dec_surf.get_rect(center=dec_rect.center))
+        buttons[f'dec_{component}'] = dec_rect
+
+        # Increment Button
+        inc_rect = pygame.Rect(0, 0, 50, 40)
+        inc_rect.center = (win_w / 2 + 100, y_pos)
+        inc_color = settings.white if inc_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        pygame.draw.rect(surface, inc_color, inc_rect, 2, 5)
+        inc_surf = settings.scoreFont.render("+", True, inc_color)
+        surface.blit(inc_surf, inc_surf.get_rect(center=inc_rect.center))
+        buttons[f'inc_{component}'] = inc_rect
+
+        y_pos += 70
+
+    # Back Button
+    back_rect = pygame.Rect(0, 0, 150, 50)
+    back_rect.center = (win_w / 2 - 100, win_h * 0.85)
+    back_color = settings.white if back_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    pygame.draw.rect(surface, back_color, back_rect, 2, 5)
+    back_surf = settings.scoreFont.render("Back", True, back_color)
+    surface.blit(back_surf, back_surf.get_rect(center=back_rect.center))
+    buttons['back'] = back_rect
+
+    # Apply Button
+    apply_rect = pygame.Rect(0, 0, 150, 50)
+    apply_rect.center = (win_w / 2 + 100, win_h * 0.85)
+    apply_color = settings.white if apply_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    pygame.draw.rect(surface, apply_color, apply_rect, 2, 5)
+    apply_surf = settings.scoreFont.render("Apply", True, apply_color)
+    surface.blit(apply_surf, apply_surf.get_rect(center=apply_rect.center))
+    buttons['apply'] = apply_rect
+
+    return buttons
 
 def draw_game_over_screen(surface, score, high_score):
     """Draws the game over screen and returns button rects."""
