@@ -19,6 +19,29 @@ def tint_surface(surface, color):
     colored_surface.blit(surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     return colored_surface
 
+def _draw_snake_preview(surface, y_pos, color):
+    """
+    Internal helper to draw a centered, right-facing 3-segment snake preview.
+    """
+    win_w, _ = surface.get_size()
+    preview_center_x = win_w / 2
+
+    # --- [FIX] Rotate sprites to face right ---
+    head = pygame.transform.rotate(settings.snakeImages['head'], -90)
+    body = pygame.transform.rotate(settings.snakeImages['body'], 90)
+    tail = pygame.transform.rotate(settings.snakeImages['tail'], -90)
+
+    # Tint the rotated sprites
+    tinted_head = tint_surface(head, color)
+    tinted_body = tint_surface(body, color)
+    tinted_tail = tint_surface(tail, color)
+
+    # --- [FIX] Center the entire snake, not just one part ---
+    # The body is the center of the preview.
+    surface.blit(tinted_body, tinted_body.get_rect(center=(preview_center_x, y_pos)))
+    surface.blit(tinted_head, tinted_head.get_rect(center=(preview_center_x + body.get_width(), y_pos)))
+    surface.blit(tinted_tail, tinted_tail.get_rect(center=(preview_center_x - body.get_width(), y_pos)))
+
 def draw_score(surface, score, high_score):
     """Draws the current score and high score."""
     score_surface = settings.scoreFont.render(f'Score: {score}  High Score: {high_score}', True, settings.white)
@@ -77,33 +100,22 @@ def draw_settings_menu(surface, current_color_name):
     surface.blit(color_label_surface, color_label_rect)
 
     # --- [NEW] Snake Preview ---
-    # Draw a 3-segment snake preview instead of a color block
-    head = settings.snakeImages['head']
-    body = settings.snakeImages['body']
-    tail = settings.snakeImages['tail']
-
-    # Tint the sprites with the currently selected color
-    tinted_head = tint_surface(head, settings.snakeColor)
-    tinted_body = tint_surface(body, settings.snakeColor)
-    tinted_tail = tint_surface(tail, settings.snakeColor)
-
-    # Position and draw the preview segments
-    preview_center_x = win_w / 2
-    surface.blit(tinted_head, tinted_head.get_rect(center=(preview_center_x, win_h * 0.5)))
-    surface.blit(tinted_body, tinted_body.get_rect(center=(preview_center_x - head.get_width(), win_h * 0.5)))
-    surface.blit(tinted_tail, tinted_tail.get_rect(center=(preview_center_x - head.get_width() * 2, win_h * 0.5)))
+    # Use the new helper function to draw the preview
+    _draw_snake_preview(surface, win_h * 0.5, settings.snakeColor)
 
     # --- Color Selector ---
     # Left Arrow
+    # --- [FIX] Position arrows relative to the snake preview width ---
+    arrow_offset = settings.snakeImages['head'].get_width() * 1.5 + 40 # 1.5 blocks for half the snake, plus 40px padding
     left_arrow_rect = pygame.Rect(0, 0, 50, 50)
-    left_arrow_rect.center = (win_w / 2 - 150, win_h * 0.5)
+    left_arrow_rect.center = (win_w / 2 - arrow_offset, win_h * 0.5)
     left_arrow_color = settings.white if left_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
     left_arrow_surf = settings.scoreFont.render("<", True, left_arrow_color)
     surface.blit(left_arrow_surf, left_arrow_surf.get_rect(center=left_arrow_rect.center))
 
     # Right Arrow
     right_arrow_rect = pygame.Rect(0, 0, 50, 50)
-    right_arrow_rect.center = (win_w / 2 + head.get_width() * 2, win_h * 0.5)
+    right_arrow_rect.center = (win_w / 2 + arrow_offset, win_h * 0.5)
     right_arrow_color = settings.white if right_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
     right_arrow_surf = settings.scoreFont.render(">", True, right_arrow_color)
     surface.blit(right_arrow_surf, right_arrow_surf.get_rect(center=right_arrow_rect.center))
@@ -126,7 +138,7 @@ def draw_settings_menu(surface, current_color_name):
 
     # --- [MODIFIED] Return the rect for the color name text, which is now below the preview ---
     color_name_surface = settings.scoreFont.render(current_color_name, True, settings.snakeColor)
-    color_name_rect = color_name_surface.get_rect(center=(win_w / 2, win_h * 0.5 + head.get_height()))
+    color_name_rect = color_name_surface.get_rect(center=(win_w / 2, win_h * 0.5 + settings.snakeImages['head'].get_height()))
     surface.blit(color_name_surface, color_name_rect)
 
     return {'left': left_arrow_rect, 'right': right_arrow_rect, 'keybinds': keybinds_rect, 'save': save_rect, 'color_name_display': color_name_rect}
@@ -196,22 +208,8 @@ def draw_custom_color_menu(surface, temp_color):
     surface.blit(title_surface, title_rect)
 
     # Color Preview
-    # --- [NEW] Snake Preview ---
-    head = settings.snakeImages['head']
-    body = settings.snakeImages['body']
-    tail = settings.snakeImages['tail']
+    _draw_snake_preview(surface, win_h * 0.3, temp_color)
 
-    # Tint the sprites with the temporary custom color
-    tinted_head = tint_surface(head, temp_color)
-    tinted_body = tint_surface(body, temp_color)
-    tinted_tail = tint_surface(tail, temp_color)
-
-    # Position and draw the preview segments
-    preview_center_x = win_w / 2
-    surface.blit(tinted_head, tinted_head.get_rect(center=(preview_center_x, win_h * 0.3)))
-    surface.blit(tinted_body, tinted_body.get_rect(center=(preview_center_x - head.get_width(), win_h * 0.3)))
-    surface.blit(tinted_tail, tinted_tail.get_rect(center=(preview_center_x - head.get_width() * 2, win_h * 0.3)))
-    
     # RGB Sliders
     y_pos = win_h * 0.5
     for i, component in enumerate(['R', 'G', 'B']):

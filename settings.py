@@ -117,7 +117,17 @@ userSettings = settings_manager.load_settings(settingsFile)
 if userSettings is None: userSettings = {} # Ensure userSettings is a dict
 
 # --- APPLY LOADED/DEFAULT SETTINGS ---
-snakeColor = colorOptions.get(userSettings.get("snakeColorName", defaultSettings["snakeColorName"]), colorOptions["Green"])
+# --- [FIX] Correctly load custom color on startup ---
+savedColorName = userSettings.get("snakeColorName", defaultSettings["snakeColorName"])
+
+if savedColorName == "Custom":
+    # If the saved name is "Custom", load the specific RGB value.
+    # Fallback to Green if the customColor value is somehow missing.
+    snakeColor = tuple(userSettings.get("customColor", defaultSettings["snakeColorName"]))
+else:
+    # Otherwise, load the color from the presets dictionary.
+    snakeColor = colorOptions.get(savedColorName, colorOptions["Green"])
+
 keybinds = userSettings.get("keybinds", defaultSettings["keybinds"])
 
 
