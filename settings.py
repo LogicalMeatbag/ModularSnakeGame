@@ -208,9 +208,9 @@ except pygame.error as e:
     error_handler.show_error_message("Fatal Asset Error", errorMessage, isFatal=True)
 
 try:
-    scoreFont = pygame.font.SysFont('timesnewroman', 35)
-    titleFont = pygame.font.SysFont('timesnewroman', 60)
-    smallFont = pygame.font.SysFont('timesnewroman', 30)
+    scoreFont = pygame.font.SysFont(None, 35)
+    titleFont = pygame.font.SysFont(None, 60)
+    smallFont = pygame.font.SysFont(None, 30)
 except Exception as e:
     print(f"Warning: Could not load fonts. Using default. Error: {e}")
     errorMessage = (
