@@ -81,11 +81,9 @@ class GameState(Enum):
     GAME_OVER = 3
     COLOR_SETTINGS = 4
     KEYBIND_SETTINGS = 5
-    '''
-    --- [TEMPLATE] FOR NEW GAME STATES ---
-                PAUSED = 6
-    '''
-
+    PAUSED = 6
+    CUSTOM_COLOR_SETTINGS = 7
+    
 def update_dynamic_dimensions(window_surface):
     """
     Calculates the new BLOCK_SIZE and game area dimensions based on the
@@ -120,8 +118,14 @@ def main():
     running = True
 
     # --- [NEW] State for settings menu ---
-    color_names = list(settings.colorOptions.keys())
+    # --- [MODIFIED] Add a "Custom" option to the color list ---
+    color_names = list(settings.colorOptions.keys()) + ["Custom"]
     current_color_index = color_names.index(settings.userSettings.get("snakeColorName", settings.defaultSettings["snakeColorName"]))
+
+    # --- [NEW] State for custom color menu ---
+    # Start with the saved custom color or the default snake color
+    initial_custom_color = settings.userSettings.get("customColor", list(settings.snakeColor))
+    temp_custom_color = list(initial_custom_color) # Work on a copy
 
     # --- [NEW] State for keybind menu ---
     # Work on a temporary copy of the keybinds
@@ -173,36 +177,53 @@ def main():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RIGHT:
                         current_color_index = (current_color_index + 1) % len(color_names)
+                        # --- [FIX] Update color immediately for visual feedback ---
+                        selected_color_name = color_names[current_color_index]
+                        if selected_color_name == "Custom":
+                            settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
+                        else:
+                            settings.snakeColor = settings.colorOptions[selected_color_name]
                     elif event.key == pygame.K_LEFT:
                         current_color_index = (current_color_index - 1) % len(color_names)
+                        # --- [FIX] Update color immediately for visual feedback ---
+                        selected_color_name = color_names[current_color_index]
+                        if selected_color_name == "Custom":
+                            settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
+                        else:
+                            settings.snakeColor = settings.colorOptions[selected_color_name]
                     elif event.key == pygame.K_RETURN or event.key == pygame.K_ESCAPE:
-                        # Save the selected color name
-                        # selected_color_name = color_names[current_color_index]
-                        # settings.userSettings["snakeColorName"] = selected_color_name
-                        # settings_manager.save_settings(settings.settingsFile, settings.userSettings)
-                        
-                        # Apply the change immediately
-                        # settings.snakeColor = settings.colorOptions[selected_color_name]
-                        # NOTE: We now only save when leaving the main settings area.
-                        # Go back to the main menu
+                        # Save current selection and go back
+                        settings.userSettings["snakeColorName"] = color_names[current_color_index]
+                        settings_manager.save_settings(settings.settingsFile, settings.userSettings)
                         current_state = GameState.MAIN_MENU
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if settings_buttons['left'].collidepoint(mouse_pos):
                         current_color_index = (current_color_index - 1) % len(color_names)
                     elif settings_buttons['right'].collidepoint(mouse_pos):
                         current_color_index = (current_color_index + 1) % len(color_names)
-                    elif settings_buttons['keybinds'].collidepoint(mouse_pos):
+
+                    # --- [FIX] Update color immediately after any change ---
+                    selected_color_name = color_names[current_color_index]
+                    if selected_color_name == "Custom":
+                        # Use the saved custom color, or default to Green if none is saved
+                        settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
+                    else:
+                        settings.snakeColor = settings.colorOptions[selected_color_name]
+
+                    if settings_buttons['keybinds'].collidepoint(mouse_pos):
                         current_state = GameState.KEYBIND_SETTINGS
                         # Reset rebinding state when entering the menu
                         selected_action_to_rebind = None
                     elif settings_buttons['save'].collidepoint(mouse_pos):
                         # Save the current color selection and go back
-                        selected_color_name = color_names[current_color_index]
                         settings.userSettings["snakeColorName"] = selected_color_name
-                        settings.snakeColor = settings.colorOptions[selected_color_name]
-                        # The keybinds are saved in their own menu
+                        # Keybinds are saved in their own menu, so we only need to save color settings here.
                         settings_manager.save_settings(settings.settingsFile, settings.userSettings)
                         current_state = GameState.MAIN_MENU
+                    
+                    # --- [FIX] Check if user clicked on the "Custom" color name to open custom editor ---
+                    if color_names[current_color_index] == "Custom" and settings_buttons['color_name_display'].collidepoint(mouse_pos):
+                        current_state = GameState.CUSTOM_COLOR_SETTINGS
 
             elif current_state == GameState.KEYBIND_SETTINGS:
                 if event.type == pygame.KEYDOWN:
@@ -234,7 +255,33 @@ def main():
                                     selected_action_to_rebind = action
                                 break # Stop checking after a click
 
-
+            elif current_state == GameState.CUSTOM_COLOR_SETTINGS:
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    for button, rect in custom_color_buttons.items():
+                        if rect.collidepoint(mouse_pos):
+                            if button.startswith('inc_'):
+                                component_index = ['R', 'G', 'B'].index(button.split('_')[1])
+                                temp_custom_color[component_index] = min(255, temp_custom_color[component_index] + 5)
+                            elif button.startswith('dec_'):
+                                component_index = ['R', 'G', 'B'].index(button.split('_')[1])
+                                temp_custom_color[component_index] = max(0, temp_custom_color[component_index] - 5)
+                            elif button == 'apply':
+                                # Save the custom color and apply it
+                                settings.userSettings["customColor"] = temp_custom_color
+                                settings.userSettings["snakeColorName"] = "Custom"
+                                settings.snakeColor = tuple(temp_custom_color)
+                                settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+                                current_state = GameState.COLOR_SETTINGS
+                            elif button == 'back':
+                                # Discard changes and go back
+                                temp_custom_color = list(settings.userSettings.get("customColor", list(settings.snakeColor)))
+                                current_state = GameState.COLOR_SETTINGS
+                            break
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        # Discard changes and go back
+                        temp_custom_color = list(settings.userSettings.get("customColor", list(settings.snakeColor)))
+                        current_state = GameState.COLOR_SETTINGS
             
             elif current_state == GameState.PLAYING:
                 # Pass game-related inputs to the controller
@@ -283,6 +330,9 @@ def main():
 
         elif current_state == GameState.KEYBIND_SETTINGS:
             keybind_buttons = ui.draw_keybind_settings_menu(settings.window, temp_keybinds, selected_action_to_rebind)
+
+        elif current_state == GameState.CUSTOM_COLOR_SETTINGS:
+            custom_color_buttons = ui.draw_custom_color_menu(settings.window, temp_custom_color)
 
         elif current_state == GameState.PLAYING:
             # The game.update() method now handles all game logic
