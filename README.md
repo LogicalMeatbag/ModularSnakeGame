@@ -2,18 +2,19 @@
 
 A classic implementation of the Snake game, built with Python and Pygame, featuring a clean, modular, and easily customizable code structure.
 
-![A player playing ANAHKEN's Modular Snake Game.](https://github.com/user-attachments/assets/0a8ca9b5-dd17-482f-8d38-268852190e6d)
+![A player playing ANAHKEN's Modular Snake Game.](https://github.com/LogicalMeatbag/ModularSnakeGame/assets/173958133/0a8ca9b5-dd17-482f-8d38-268852190e6d)
 
 ## Features
 
 *   **Classic Snake Gameplay**: Eat food to grow longer and increase your score.
-*   **In-Game Settings Menu**: Customize snake color and configure keybindings directly within the game.
+*   **Advanced In-Game Settings**:
+    *   **Color Customization**: Choose from presets or create your own unique snake color with RGB sliders and direct value input.
+    *   **Keybinding Configuration**: Remap your controls for up, down, left, and right movements.
 *   **Modern & Resizable Window**: Start at any size and resize the window on the fly. The game grid adapts automatically.
 *   **Persistent High Score**: Your best score is automatically saved in your user profile's AppData folder.
-*   **Sound Effects**: Audio feedback for eating food and game over.
+*   **Polished UI/UX**: Enjoy sprite-based graphics, a pause menu, and satisfying audio feedback for button clicks.
 *   **Clean, Modular Code**: The project is split into logical modules, making it easy to understand and extend.
-*   **Easy Customization**: Tweak game speed, colors, block size, and more by editing the `settings.py` file.
-*   **Robust Startup**: Includes pre-run checks for the required Python version and Pygame installation to help users troubleshoot.
+*   **Robust Error Handling**: Clear, visual error messages guide the user if assets are missing or the environment is set up incorrectly.
 *   **Ready for Distribution**: Contains logic to correctly find assets (`.wav` files) when bundled into a single executable with tools like PyInstaller.
 
 ## Requirements
@@ -52,7 +53,7 @@ If you have a `.exe` version of the game:
     ```sh
     python main.py
     ```
-    *(Note: You don't need to run the `main.py` script, but it takes a shorter time to load the game if you do.)*
+    *(Note: Thanks to a robust launcher script, you can actually run any of the project's `.py` files to start the game.)*
 
 ## Customization
 
@@ -98,7 +99,7 @@ This project is set up to be easily bundled into a single executable using **PyI
     Open a terminal in the project directory and run the following command. The `--add-data` flags are crucial for including the sound files.
     The simplest way is to copy the entire `assets` folder.
     ```sh
-    pyinstaller --onefile --windowed --name "SnakeGame" --add-data "assets;assets" main.py
+    pyinstaller --onefile --windowed --name "SnakeGame" --icon="assets/images/icon.png" --add-data "assets;assets" main.py
     ```
 
 3.  **Find your executable:**
