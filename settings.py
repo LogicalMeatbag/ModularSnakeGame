@@ -59,7 +59,7 @@ startSpeed = 15
 # pygame.RESIZABLE allows the user to change the window size.
 # pygame.DOUBLEBUF is recommended for smoother rendering.
 gameTitle = "ANAHKEN's Modular Snake Game"
-window = pygame.display.set_mode((initialWidth, initialHeight), pygame.RESIZABLE | pygame.DOUBLEBUF)
+window = pygame.display.set_mode((initialWidth, initialHeight), pygame.RESIZABLE | pygame.DOUBLEBUF, vsync=1)
 pygame.display.set_caption(gameTitle)
 clock = pygame.time.Clock()
 

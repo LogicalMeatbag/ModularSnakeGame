@@ -108,7 +108,7 @@ def main():
     # --- [FIX] Define start_new_game inside main() to give it access to the correct scope ---
     def start_new_game():
         """Resets all game-specific state to start a fresh game."""
-        nonlocal active_event, event_timer, notification_end_time, countdown_seconds_left
+        nonlocal active_event, event_timer, notification_end_time, countdown_seconds_left, time_since_last_move
         
         # Reset the core game controller (snake, food, score, speed)
         game.reset()
@@ -118,6 +118,9 @@ def main():
         event_timer = 0
         notification_end_time = 0
         countdown_seconds_left = 0
+
+        # --- [NEW] Reset the game logic timer ---
+        time_since_last_move = 0
         
         # Set the game state to playing
         return GameState.PLAYING
@@ -166,6 +169,10 @@ def main():
     notification_end_time = 0 # For showing the event name text
     countdown_seconds_left = 0 # For showing the pre-event countdown
     
+    # --- [NEW] Timer for time-based game logic updates ---
+    time_since_last_move = 0
+    delta_time = 0
+
     pause_start_time = 0 # To track duration of pause
     # --- [NEW] Initial dimension calculation ---
     update_dynamic_dimensions(settings.window)
@@ -487,14 +494,23 @@ def main():
         elif current_state == GameState.PLAYING:
             # The game.update() method now handles all game logic
             # and returns True if the game is over.
-            is_game_over = game.update(active_event)
+            # --- [NEW] Time-based logic update ---
+            time_since_last_move += delta_time
+            # Calculate the required time between moves based on speed
+            move_interval = 1000 / game.speed # in milliseconds
+
+            if time_since_last_move >= move_interval:
+                time_since_last_move -= move_interval # Decrement, don't reset, to carry over excess time
+                is_game_over = game.update(active_event)
+                
+                if is_game_over:
+                    settings.gameOverSound.play()
+                    game.save_score_if_high()
+                    current_state = GameState.GAME_OVER
             
-            if is_game_over:
-                settings.gameOverSound.play()
-                game.save_score_if_high()
-                current_state = GameState.GAME_OVER
-            else:
-                # Draw all the game elements
+            # --- [NEW] Drawing is now independent of logic updates ---
+            # It will always run at the monitor's refresh rate.
+            if current_state == GameState.PLAYING:
                 game.draw(settings.window)
 
             # --- [NEW] Handle event logic inside the PLAYING state ---
@@ -508,7 +524,7 @@ def main():
             # 2. If no event is active, count up the main event timer.
             if not active_event and current_state != GameState.EVENT_COUNTDOWN:
                 if event_timer < settings.EVENT_TIMER_MAX:
-                    event_timer += settings.clock.get_time() # Add milliseconds since last frame
+                    event_timer += delta_time # Use our delta_time variable
                 else:
                     # Timer is up. Roll the dice to see if we start a countdown.
                     event_timer = 0 # Reset timer for the next cycle
@@ -534,14 +550,23 @@ def main():
         elif current_state == GameState.EVENT_COUNTDOWN:
             # We are in the pre-event countdown.
             # --- [FIX] Update the game state so it doesn't pause during the countdown. ---
-            is_game_over = game.update(active_event)
-            if is_game_over: # It's possible to die during the countdown
-                settings.gameOverSound.play()
-                game.save_score_if_high()
-                current_state = GameState.GAME_OVER
+            # --- [NEW] Also use time-based updates here ---
+            time_since_last_move += delta_time
+            move_interval = 1000 / game.speed
+
+            if time_since_last_move >= move_interval:
+                time_since_last_move -= move_interval
+                is_game_over = game.update(active_event)
+                if is_game_over: # It's possible to die during the countdown
+                    settings.gameOverSound.play()
+                    game.save_score_if_high()
+                    current_state = GameState.GAME_OVER
             
+            # Drawing is independent
             game.draw(settings.window) # Keep drawing the game
-            time_since_start = pygame.time.get_ticks() - event_start_time
+
+            current_time = pygame.time.get_ticks()
+            time_since_start = current_time - event_start_time
             
             if time_since_start >= settings.EVENT_COUNTDOWN_DURATION:
                 # Countdown finished! Trigger the actual event.
@@ -603,8 +628,10 @@ def main():
         # This is the crucial step that makes everything drawn in the loop
         # actually appear on the screen.
         pygame.display.update()
-        # Use the game's current speed
-        settings.clock.tick(game.speed)
+        # --- [NEW] Uncap framerate and get delta time ---
+        # clock.tick() returns milliseconds since the last frame.
+        # With vsync on, this loop will run at the monitor's refresh rate.
+        delta_time = settings.clock.tick()
 
     pygame.quit()
     sys.exit()
