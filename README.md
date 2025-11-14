@@ -105,11 +105,11 @@ This project is set up to be easily bundled into a single executable using **PyI
     The simplest way is to copy the entire `assets` folder. For the best visual quality, provide a multi-resolution `.ico` file for the icon.
     ```sh
     # Windows
-    pyinstaller --onefile --windowed --name "SnakeGame" --icon="assets/images/icon.ico" --add-data "assets;assets" main.py
+    pyinstaller --onefile --windowed --name "ANAHKENs Modular Snake Game" --icon="assets/images/icon.ico" --add-data "assets;assets" main.py
     ```
 
 3.  **Find your executable:**
-    PyInstaller will create a `dist` folder containing `SnakeGame.exe`. This file can be shared and run on other Windows machines without needing Python or Pygame installed.
+    PyInstaller will create a `dist` folder containing `ANAHKENs Modular Snake Game.exe`. This file can be shared and run on other Windows machines without needing Python or Pygame installed.
 
 ## License
 
