@@ -7,15 +7,19 @@ A classic implementation of the Snake game, built with Python and Pygame, featur
 ## Features
 
 *   **Classic Snake Gameplay**: Eat food to grow longer and increase your score.
-*   **Advanced In-Game Settings**:
+*   **Dynamic Random Events**: Keep on your toes! The game can randomly trigger events like "Apples Galore", "Golden Apple Rain", "BEEEG Snake", and more to change up the gameplay.
+*   **Advanced In-Game Settings Menu**:
     *   **Color Customization**: Choose from presets or create your own unique snake color with RGB sliders and direct value input.
     *   **Keybinding Configuration**: Remap your controls for up, down, left, and right movements.
 *   **Modern & Resizable Window**: Start at any size and resize the window on the fly. The game grid adapts automatically.
-*   **Persistent High Score**: Your best score is automatically saved in your user profile's AppData folder.
-*   **Polished UI/UX**: Enjoy sprite-based graphics, a pause menu, and satisfying audio feedback for button clicks.
+*   **Persistent High Score**: Your best score is automatically saved (and compressed!) in your user profile's AppData folder.
+*   **Polished UI/UX**: Enjoy sprite-based graphics, intelligent food spawning, a pause menu, and satisfying audio feedback.
 *   **Clean, Modular Code**: The project is split into logical modules, making it easy to understand and extend.
 *   **Robust Error Handling**: Clear, visual error messages guide the user if assets are missing or the environment is set up incorrectly.
-*   **Ready for Distribution**: Contains logic to correctly find assets (`.wav` files) when bundled into a single executable with tools like PyInstaller.
+*   **Developer-Friendly Features**:
+    *   **Comprehensive Debug Mode**: Toggle a real-time overlay showing game state variables, and access a special menu to override event chances for easy testing.
+    *   **High-Refresh-Rate Ready**: Uses a V-Sync'd, delta-time-based game loop for perfectly smooth rendering on any monitor (60Hz, 144Hz, etc.).
+*   **Ready for Distribution**: Contains logic to correctly find assets when bundled into a single executable with tools like PyInstaller.
 
 ## Requirements
 
@@ -63,6 +67,7 @@ The game now offers two levels of customization:
 From the main menu, you can enter the **Settings** screen to:
 *   Change the **Snake Color**.
 *   **Configure Controls** for up, down, left, and right movements.
+*   Enable **Debug Mode** and access its own configuration menu.
 
 These settings are saved automatically in a `settings.dat` file in your AppData folder.
 
@@ -80,7 +85,7 @@ For more advanced changes, you can edit the `settings.py` file to modify:
 *   `game_controller.py`: Manages a single game session. It holds the snake and food objects, tracks the score, and handles the core update logic (movement, eating, collisions).
 *   `game_entities.py`: Defines the classes for the objects in the game: `Snake` and `Food`. These classes manage their own state and drawing logic.
 *   `ui.py`: Contains simple functions for drawing UI elements to the screen, such as the main menu, game over screen, and score display.
-*   `score_manager.py`: A utility module for loading and saving the obfuscated high score file (`highscore.dat`).
+*   `score_manager.py`: A utility module for loading and saving the obfuscated and compressed high score file (`highscore.dat`).
 *   `settings_manager.py`: A utility module for loading and saving the user's custom settings (`settings.dat`).
 *   `assets/`: A folder containing subdirectories for all game assets.
     *   `assets/images`: Contains all the images for the game.
@@ -108,4 +113,3 @@ This project is set up to be easily bundled into a single executable using **PyI
 ## License
 
 This project is open source and available under the MIT License.
-
