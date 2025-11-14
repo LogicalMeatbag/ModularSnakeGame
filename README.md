@@ -102,9 +102,10 @@ This project is set up to be easily bundled into a single executable using **PyI
 
 2.  **Run the PyInstaller command:**
     Open a terminal in the project directory and run the following command. The `--add-data` flags are crucial for including the sound files.
-    The simplest way is to copy the entire `assets` folder.
+    The simplest way is to copy the entire `assets` folder. For the best visual quality, provide a multi-resolution `.ico` file for the icon.
     ```sh
-    pyinstaller --onefile --windowed --name "SnakeGame" --icon="assets/images/icon.png" --add-data "assets;assets" main.py
+    # Windows
+    pyinstaller --onefile --windowed --name "SnakeGame" --icon="assets/images/icon.ico" --add-data "assets;assets" main.py
     ```
 
 3.  **Find your executable:**
