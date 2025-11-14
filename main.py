@@ -95,6 +95,38 @@ def update_dynamic_dimensions(window_surface):
     settings.xOffset = (win_w - settings.width) // 2
     settings.yOffset = (win_h - settings.height) // 2
 
+def update_snake_color_from_name(selected_color_name):
+    """
+    A reusable helper function to update the global snakeColor based on a name.
+    Handles the logic for "Custom" vs. preset colors.
+    """
+    if selected_color_name == "Custom":
+        # Use the saved custom color, or default to Green if none is saved
+        settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
+    else:
+        settings.snakeColor = settings.colorOptions[selected_color_name]
+
+def handle_game_update(time_since_last_move, delta_time, game_instance, active_event):
+    """
+    A reusable helper to handle the time-based game logic update.
+    This is called from both PLAYING and EVENT_COUNTDOWN states.
+    Returns the new time_since_last_move and a game_over flag.
+    """
+    time_since_last_move += delta_time
+    move_interval = 1000 / game_instance.speed # in milliseconds
+    game_over = False
+
+    # It's possible for multiple updates to happen in a single frame on a slow machine,
+    # so we use a while loop.
+    while time_since_last_move >= move_interval:
+        time_since_last_move -= move_interval
+        if game_instance.update(active_event):
+            game_over = True
+            # If game is over, stop processing more moves in this frame
+            break 
+    
+    return time_since_last_move, game_over
+
 def main():
     # The game controller manages the actual game session
     game = GameController()
@@ -204,18 +236,10 @@ def main():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RIGHT:
                         current_color_index = (current_color_index + 1) % len(color_names)
-                        selected_color_name = color_names[current_color_index]
-                        if selected_color_name == "Custom":
-                            settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
-                        else:
-                            settings.snakeColor = settings.colorOptions[selected_color_name]
+                        update_snake_color_from_name(color_names[current_color_index])
                     elif event.key == pygame.K_LEFT:
                         current_color_index = (current_color_index - 1) % len(color_names)
-                        selected_color_name = color_names[current_color_index]
-                        if selected_color_name == "Custom":
-                            settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
-                        else:
-                            settings.snakeColor = settings.colorOptions[selected_color_name]
+                        update_snake_color_from_name(color_names[current_color_index])
                     elif event.key == pygame.K_RETURN or event.key == pygame.K_ESCAPE:
                         # Save current selection and go back
                         settings.userSettings["snakeColorName"] = color_names[current_color_index]
@@ -229,14 +253,8 @@ def main():
                         settings.buttonClickSound.play()
                         current_color_index = (current_color_index + 1) % len(color_names)
 
-                    # Update color immediately after any change for visual feedback
-                    selected_color_name = color_names[current_color_index]
-                    if selected_color_name == "Custom":
-                        # Use the saved custom color, or default to Green if none is saved
-                        settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
-                    else:
-                        settings.snakeColor = settings.colorOptions[selected_color_name]
-
+                    # Update color immediately after any click for visual feedback
+                    update_snake_color_from_name(color_names[current_color_index])
                     if settings_buttons['keybinds'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
                         current_state = GameState.KEYBIND_SETTINGS
@@ -248,8 +266,8 @@ def main():
                         settings.userSettings["debugMode"] = settings.debugMode # Update for saving
                     elif settings_buttons['save'].collidepoint(mouse_pos):
                         # Save the current color selection and go back
-                        settings.buttonClickSound.play()
-                        settings.userSettings["snakeColorName"] = selected_color_name
+                        settings.buttonClickSound.play()                        
+                        settings.userSettings["snakeColorName"] = color_names[current_color_index]
                         # Keybinds are saved in their own menu, so we only need to save color settings here.
                         settings_manager.save_settings(settings.settingsFile, settings.userSettings)
                         current_state = GameState.MAIN_MENU
@@ -461,18 +479,11 @@ def main():
 
         elif current_state == GameState.PLAYING:
             # The game.update() method now handles all game logic
-            time_since_last_move += delta_time
-            # Calculate the required time between moves based on speed
-            move_interval = 1000 / game.speed # in milliseconds
-
-            if time_since_last_move >= move_interval:
-                time_since_last_move -= move_interval # Decrement, don't reset, to carry over excess time
-                is_game_over = game.update(active_event)
-                
-                if is_game_over:
-                    settings.gameOverSound.play()
-                    game.save_score_if_high()
-                    current_state = GameState.GAME_OVER
+            time_since_last_move, is_game_over = handle_game_update(time_since_last_move, delta_time, game, active_event)
+            if is_game_over:
+                settings.gameOverSound.play()
+                game.save_score_if_high()
+                current_state = GameState.GAME_OVER
             
             # Drawing is independent of logic updates and will run at the monitor's refresh rate.
             if current_state == GameState.PLAYING:
@@ -510,16 +521,11 @@ def main():
                     ui.draw_revert_countdown(settings.window, int(time_left) + 1)
 
         elif current_state == GameState.EVENT_COUNTDOWN:
-            time_since_last_move += delta_time
-            move_interval = 1000 / game.speed
-
-            if time_since_last_move >= move_interval:
-                time_since_last_move -= move_interval
-                is_game_over = game.update(active_event)
-                if is_game_over: # It's possible to die during the countdown
-                    settings.gameOverSound.play()
-                    game.save_score_if_high()
-                    current_state = GameState.GAME_OVER
+            time_since_last_move, is_game_over = handle_game_update(time_since_last_move, delta_time, game, active_event)
+            if is_game_over: # It's possible to die during the countdown
+                settings.gameOverSound.play()
+                game.save_score_if_high()
+                current_state = GameState.GAME_OVER
             
             # Drawing is independent
             game.draw(settings.window) # Keep drawing the game
