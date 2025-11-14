@@ -61,7 +61,7 @@ iconFile = os.path.join(base_path, 'assets', 'images', 'icon.png')
 try:
     gameIcon = pygame.image.load(iconFile).convert_alpha()
     pygame.display.set_icon(gameIcon)
-except pygame.error as e:
+except (pygame.error, FileNotFoundError) as e:
     # This is not a fatal error, the game can run without an icon.
     errorMessage = (
         f"The game icon could not be loaded.\n\nDetails: {e}\n\n"
