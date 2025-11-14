@@ -1,3 +1,6 @@
+### These ignored files are files that are generated during 
+### development and should not be committed to version control.
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
