@@ -8,6 +8,15 @@ import os
 import base64
 import binascii  # For error handling
 
+# --- [NEW 3.14 FEATURE] Conditionally import the zstd module ---
+# We try to import the new module. If it fails, we set a flag and move on.
+# This allows the code to run on older Python versions without crashing.
+try:
+    import compression.zstd as zstd
+    ZSTD_AVAILABLE = True
+except ImportError:
+    ZSTD_AVAILABLE = False
+
 def load_high_score(filepath):
     """
     Loads the high score from the specified file.
@@ -21,8 +30,14 @@ def load_high_score(filepath):
                 if not encoded_score:
                     return 0
                 
-                # Decode the Base64 data
-                str_score = base64.b64decode(encoded_score).decode('utf-8')
+                # --- [NEW 3.14 FEATURE] Try to decompress if zstd was used ---
+                # The first byte tells us if it's compressed.
+                if ZSTD_AVAILABLE and encoded_score[0] == 1:
+                    decoded_score = zstd.decompress(encoded_score[1:])
+                else:
+                    # Fallback to simple Base64 decoding
+                    decoded_score = base64.b64decode(encoded_score)
+                str_score = decoded_score.decode('utf-8')
                 return int(str_score)
         except (ValueError, binascii.Error, IOError, EOFError):
             # File is corrupt, empty, or unreadable.
@@ -40,12 +55,17 @@ def save_high_score(filepath, new_high_score):
         # Convert score to string, encode to utf-8 bytes
         str_score_bytes = str(new_high_score).encode('utf-8')
         
-        # Encode those bytes into Base64
-        encoded_score = base64.b64encode(str_score_bytes)
+        # --- [NEW 3.14 FEATURE] Use zstd compression if available ---
+        if ZSTD_AVAILABLE:
+            # Compress the data and add a '1' byte at the start as a flag
+            final_data = b'\x01' + zstd.compress(str_score_bytes)
+        else:
+            # On older Python, just use Base64
+            final_data = base64.b64encode(str_score_bytes)
         
         # Open in 'wb' (write binary) mode
         with open(filepath, 'wb') as f:
-            f.write(encoded_score)
+            f.write(final_data)
     except IOError as e:
         print(f"Warning: Unable to save high score file. Error: {e}")
 
