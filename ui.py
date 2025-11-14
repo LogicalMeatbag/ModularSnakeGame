@@ -26,7 +26,6 @@ def _draw_snake_preview(surface, y_pos, color):
     win_w, _ = surface.get_size()
     preview_center_x = win_w / 2
     
-    # --- [NEW] Scale up the images for better visibility ---
     scale_factor = 2
     original_head = settings.snakeImages['head']
     original_body = settings.snakeImages['body']
@@ -116,13 +115,10 @@ def draw_settings_menu(surface, current_color_name):
     color_label_rect = color_label_surface.get_rect(center=(win_w / 2, win_h * 0.4))
     surface.blit(color_label_surface, color_label_rect)
 
-    # --- [NEW] Snake Preview ---
-    # Use the new helper function to draw the preview
     _draw_snake_preview(surface, win_h * 0.5, settings.snakeColor)
 
     # --- Color Selector ---
     # Left Arrow
-    # --- [FIX] Position arrows relative to the snake preview width ---
     arrow_offset = settings.snakeImages['head'].get_width() * 1.5 + 40 # 1.5 blocks for half the snake, plus 40px padding
     left_arrow_rect = pygame.Rect(0, 0, 50, 50)
     left_arrow_rect.center = (win_w / 2 - arrow_offset, win_h * 0.5)
@@ -137,7 +133,7 @@ def draw_settings_menu(surface, current_color_name):
     right_arrow_surf = settings.scoreFont.render(">", True, right_arrow_color)
     surface.blit(right_arrow_surf, right_arrow_surf.get_rect(center=right_arrow_rect.center))
 
-    # --- [NEW] Debug Settings Button (only shows if debug mode is on) ---
+    # Debug Settings Button (only shows if debug mode is on)
     if settings.debugMode:
         debugMenuText = "Debug Settings"
         debugMenuSurface = settings.smallFont.render(debugMenuText, True, settings.white)
@@ -149,7 +145,6 @@ def draw_settings_menu(surface, current_color_name):
         surface.blit(debugMenuSurface, debugMenuSurface.get_rect(center=debug_menu_rect.center))
 
     # Keybinds Button
-    # --- [FIX] Dynamically size the button based on the text width ---
     keybindsText = "Configure Controls"
     keybindsSurface = settings.scoreFont.render(keybindsText, True, settings.white) # Render once to get size
     keybinds_rect = pygame.Rect(0, 0, keybindsSurface.get_width() + 40, 50) # Add 20px padding on each side
@@ -159,7 +154,6 @@ def draw_settings_menu(surface, current_color_name):
     keybindsSurface = settings.scoreFont.render(keybindsText, True, keybindsColor) # Re-render with hover color
     surface.blit(keybindsSurface, keybindsSurface.get_rect(center=keybinds_rect.center))
 
-    # --- [NEW] Debug Mode Toggle ---
     debug_toggle_y = win_h * 0.78
     debug_label_surface = settings.scoreFont.render("Debug Mode:", True, settings.white)
     debug_label_rect = debug_label_surface.get_rect(midright=(win_w / 2, debug_toggle_y))
@@ -189,8 +183,7 @@ def draw_settings_menu(surface, current_color_name):
     saveSurface = settings.scoreFont.render(saveText, True, saveColor) # Re-render with hover color
     surface.blit(saveSurface, saveSurface.get_rect(center=save_rect.center))
 
-    # --- [MODIFIED] Return the rect for the color name text, which is now below the preview ---
-    # --- [FIX] Add padding to prevent text from overlapping with the snake preview ---
+    # Add padding to prevent text from overlapping with the snake preview
     spriteHeight = settings.snakeImages['head'].get_height()
     text_y_pos = win_h * 0.5 + (spriteHeight / 2) + 20 # Half sprite height + 20px padding
     color_name_surface = settings.scoreFont.render(current_color_name, True, settings.snakeColor)
@@ -234,7 +227,6 @@ def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
         if selected_action == action:
             key_text = "Press any key..."
         
-        # --- [FIX] Make keybind buttons dynamically sized ---
         key_surface_render = settings.smallFont.render(key_text, True, settings.white)
         # Ensure a minimum width for the "Press any key..." prompt
         min_width = 250
@@ -284,7 +276,6 @@ def draw_custom_color_menu(surface, temp_color, editing_component=None, input_st
         label_surface = settings.scoreFont.render(component, True, settings.white)
         surface.blit(label_surface, label_surface.get_rect(midright=(win_w / 2 - 170, y_pos)))
 
-        # --- [NEW] Value display / text input box ---
         value_rect = pygame.Rect(0, 0, 100, 40)
         value_rect.center = (win_w / 2, y_pos)
         buttons[f'edit_{component}'] = value_rect # Add rect for click detection
@@ -375,7 +366,6 @@ def draw_game_over_screen(surface, score, high_score):
     restart_surface = settings.scoreFont.render(restart_text, True, restart_color) # Re-render
     surface.blit(restart_surface, restart_surface.get_rect(center=restart_rect.center))
 
-    # --- [MODIFIED] Main Menu Button ---
     main_menu_text = "Main Menu"
     main_menu_surface = settings.scoreFont.render(main_menu_text, True, settings.white)
     mainMenuRect = pygame.Rect(0, 0, main_menu_surface.get_width() + 40, 50)

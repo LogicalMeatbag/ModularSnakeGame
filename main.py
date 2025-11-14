@@ -11,7 +11,6 @@ import error_handler
 from settings import gameTitle # so we can print it before running the main.py code
 
 print(f'Starting {gameTitle}... (Python {sys.version_info.major}.{sys.version_info.minor})')
-# --- [NEW] Set up global exception handler ---
 # This will catch any error that isn't explicitly handled elsewhere
 # and display it in a user-friendly GUI window before the program
 # terminates. This is our safety net for all unanticipated errors.
@@ -36,11 +35,6 @@ if sys.version_info < MIN_PYTHON_VERSION:
     error_handler.show_error_message("Python Version Error", error_message, isFatal=True)
 
 # --- 2. Pygame Import Check ---
-
-# --- [TESTING] How to test this block without uninstalling pygame ---
-# To test the error message, temporarily uncomment the two lines below.
-# They "hide" the pygame module, forcing the ImportError to trigger.
-# sys.modules['pygame'] = None
 
 try:
     import pygame
@@ -119,7 +113,6 @@ def main():
         notification_end_time = 0
         countdown_seconds_left = 0
 
-        # --- [NEW] Reset the game logic timer ---
         time_since_last_move = 0
         
         # Set the game state to playing
@@ -129,21 +122,16 @@ def main():
     current_state = GameState.MAIN_MENU
     running = True
 
-    # --- [NEW] State for settings menu ---
-    # --- [MODIFIED] Add a "Custom" option to the color list ---
     color_names = list(settings.colorOptions.keys()) + ["Custom"]
     current_color_index = color_names.index(settings.userSettings.get("snakeColorName", settings.defaultSettings["snakeColorName"]))
 
-    # --- [NEW] State for custom color menu ---
     # Start with the saved custom color or the default snake color
     initial_custom_color = settings.userSettings.get("customColor", list(settings.snakeColor))
     temp_custom_color = list(initial_custom_color) # Work on a copy
 
-    # --- [NEW] State for debug settings menu ---
     # Work on a temporary copy
     temp_debug_settings = settings.debugSettings.copy()
 
-    # --- [NEW] State for keybind menu ---
     # Work on a temporary copy of the keybinds
     temp_keybinds = {k: list(v) for k, v in settings.keybinds.items()}
     selected_action_to_rebind = None # e.g., 'UP', 'DOWN', None
@@ -158,7 +146,6 @@ def main():
     editingColorComponent = None # 'R', 'G', 'B', or None
     rgbInputString = ""
 
-    # --- [NEW] State for random events ---
     event_list = [
         "Apples Galore", "Golden Apple Rain", "BEEEG Snake", 
         "Small Snake", "Racecar Snake", "Slow Snake"
@@ -169,12 +156,10 @@ def main():
     notification_end_time = 0 # For showing the event name text
     countdown_seconds_left = 0 # For showing the pre-event countdown
     
-    # --- [NEW] Timer for time-based game logic updates ---
     time_since_last_move = 0
     delta_time = 0
 
     pause_start_time = 0 # To track duration of pause
-    # --- [NEW] Initial dimension calculation ---
     update_dynamic_dimensions(settings.window)
 
     while running:
@@ -187,14 +172,12 @@ def main():
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 heldButton = None # Stop holding on any mouse up event
 
-            # --- [NEW] Handle window resizing ---
             if event.type == pygame.VIDEORESIZE:
                 # Recreate the window surface with the new size
                 settings.window = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE | pygame.DOUBLEBUF)
                 # Recalculate all dynamic sizes and offsets
                 update_dynamic_dimensions(settings.window)
-                # --- [FIX] Force entities to update their internal scaling ---
-                # This tells the snake and food to rescale their sprites on the next frame.
+                # Force entities to update their internal scaling on the next frame.
                 game.snake.last_block_size = -1
                 game.food.last_block_size = -1
 
@@ -221,7 +204,6 @@ def main():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RIGHT:
                         current_color_index = (current_color_index + 1) % len(color_names)
-                        # --- [FIX] Update color immediately for visual feedback ---
                         selected_color_name = color_names[current_color_index]
                         if selected_color_name == "Custom":
                             settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
@@ -229,7 +211,6 @@ def main():
                             settings.snakeColor = settings.colorOptions[selected_color_name]
                     elif event.key == pygame.K_LEFT:
                         current_color_index = (current_color_index - 1) % len(color_names)
-                        # --- [FIX] Update color immediately for visual feedback ---
                         selected_color_name = color_names[current_color_index]
                         if selected_color_name == "Custom":
                             settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
@@ -248,7 +229,7 @@ def main():
                         settings.buttonClickSound.play()
                         current_color_index = (current_color_index + 1) % len(color_names)
 
-                    # --- [FIX] Update color immediately after any change ---
+                    # Update color immediately after any change for visual feedback
                     selected_color_name = color_names[current_color_index]
                     if selected_color_name == "Custom":
                         # Use the saved custom color, or default to Green if none is saved
@@ -273,12 +254,10 @@ def main():
                         settings_manager.save_settings(settings.settingsFile, settings.userSettings)
                         current_state = GameState.MAIN_MENU
                     
-                    # --- [FIX] Check if user clicked on the "Custom" color name to open custom editor ---
                     if color_names[current_color_index] == "Custom" and settings_buttons['color_name_display'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
                         current_state = GameState.CUSTOM_COLOR_SETTINGS
 
-                    # --- [NEW] Check for debug settings button click ---
                     if settings_buttons.get('debug_menu') and settings_buttons['debug_menu'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
                         current_state = GameState.DEBUG_SETTINGS
@@ -317,7 +296,6 @@ def main():
 
             elif current_state == GameState.CUSTOM_COLOR_SETTINGS:
                 if editingColorComponent:
-                    # --- Handle Text Input ---
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_RETURN:
                             # Apply the typed value
@@ -335,7 +313,6 @@ def main():
                         elif event.unicode.isdigit():
                             rgbInputString += event.unicode
                 else:
-                    # --- Handle Button Clicks ---
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         clicked_on_button = False
                         for button, rect in custom_color_buttons.items():
@@ -409,23 +386,18 @@ def main():
             elif current_state == GameState.PLAYING:
                 # Pass game-related inputs to the controller
                 game.handle_input(event)
-                # --- [NEW] Pause the game ---
                 if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
                     pause_start_time = pygame.time.get_ticks() # Record when pause starts
                     current_state = GameState.PAUSED
             
             elif current_state == GameState.EVENT_COUNTDOWN:
-                # --- [FIX] Also handle player input during the event countdown ---
                 game.handle_input(event)
                 if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
-                    # It should also be possible to pause during the countdown
                     pause_start_time = pygame.time.get_ticks()
                     current_state = GameState.PAUSED
             
             elif current_state == GameState.PAUSED:
                 if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
-                    # --- [NEW] Adjust event timers when unpausing ---
-                    # This prevents events from ending while paused.
                     pause_duration = pygame.time.get_ticks() - pause_start_time
                     if active_event:
                         event_start_time += pause_duration
@@ -449,11 +421,8 @@ def main():
         # --- Game Logic & Drawing ---
         
         # Clear the screen
-        # --- [NEW] Draw border and background ---
-        # 1. Fill the entire window with the border color.
         settings.window.fill(settings.borderColor)
-        # 2. Draw the game area background on top, creating the letterbox effect. 
-        # --- [FIX] Ensure all rect dimensions are integers to prevent rounding errors ---
+        # Draw the game area background on top, creating the letterbox effect.
         # This guarantees the background aligns perfectly with the grid.
         game_area_rect = pygame.Rect(
             int(settings.xOffset), int(settings.yOffset), int(settings.width), int(settings.height)
@@ -473,7 +442,6 @@ def main():
             keybind_buttons = ui.draw_keybind_settings_menu(settings.window, temp_keybinds, selected_action_to_rebind)
 
         elif current_state == GameState.CUSTOM_COLOR_SETTINGS:
-            # --- [NEW] Handle held button logic ---
             if heldButton:
                 currentTime = pygame.time.get_ticks()
                 if currentTime - heldButtonStartTime > INITIAL_HOLD_DELAY:
@@ -493,8 +461,6 @@ def main():
 
         elif current_state == GameState.PLAYING:
             # The game.update() method now handles all game logic
-            # and returns True if the game is over.
-            # --- [NEW] Time-based logic update ---
             time_since_last_move += delta_time
             # Calculate the required time between moves based on speed
             move_interval = 1000 / game.speed # in milliseconds
@@ -508,12 +474,10 @@ def main():
                     game.save_score_if_high()
                     current_state = GameState.GAME_OVER
             
-            # --- [NEW] Drawing is now independent of logic updates ---
-            # It will always run at the monitor's refresh rate.
+            # Drawing is independent of logic updates and will run at the monitor's refresh rate.
             if current_state == GameState.PLAYING:
                 game.draw(settings.window)
 
-            # --- [NEW] Handle event logic inside the PLAYING state ---
             current_time = pygame.time.get_ticks()
 
             # 1. Check if an active event has expired
@@ -538,19 +502,14 @@ def main():
             if current_time < notification_end_time:
                 if active_event: # Ensure there's an event to announce
                     ui.draw_event_notification(settings.window, active_event)
-                    # --- [NEW] If it's a size event, show the revert countdown ---
             
-            # --- [FIX] Draw revert countdown separately from the notification ---
-            # This ensures it lasts for the full event duration.
+            # Draw revert countdown separately from the notification to ensure it lasts for the full event duration.
             if active_event in ["BEEEG Snake", "Small Snake"]:
                 time_left = (event_start_time + settings.EVENT_DURATION - current_time) / 1000
                 if time_left > 0:
                     ui.draw_revert_countdown(settings.window, int(time_left) + 1)
 
         elif current_state == GameState.EVENT_COUNTDOWN:
-            # We are in the pre-event countdown.
-            # --- [FIX] Update the game state so it doesn't pause during the countdown. ---
-            # --- [NEW] Also use time-based updates here ---
             time_since_last_move += delta_time
             move_interval = 1000 / game.speed
 
@@ -583,11 +542,7 @@ def main():
         elif current_state == GameState.PAUSED:
             # First, draw the underlying game screen so it's visible.
             game.draw(settings.window)
-            # Then, draw the pause menu over it.
-            # --- [FIX] The pause menu doesn't exist yet, so we'll just draw text ---
             pause_font = pygame.font.SysFont(None, 80)
-            # --- [FIX] Adjust pause timers when unpausing ---
-            # This prevents events from ending while paused.
             if active_event:
                 event_start_time += pygame.time.get_ticks() - pause_start_time
             pause_surface = pause_font.render("PAUSED", True, settings.white)
@@ -598,13 +553,11 @@ def main():
             # Pass the final score and high score to the UI function
             game_over_buttons = ui.draw_game_over_screen(settings.window, game.score, game.high_score)
 
-        # --- [NEW] Draw Debug Overlay if enabled ---
         if settings.debugMode:
             event_time_left = 0
             if active_event:
                 event_time_left = (event_start_time + settings.EVENT_DURATION - pygame.time.get_ticks()) / 1000
 
-            # --- [NEW] Build debug info based on visibility settings ---
             all_debug_info = {
                 "State": (settings.debugSettings['showState'], current_state.name),
                 "Snake Pos": (settings.debugSettings['showSnakePos'], str(game.snake.pos)),
@@ -628,7 +581,6 @@ def main():
         # This is the crucial step that makes everything drawn in the loop
         # actually appear on the screen.
         pygame.display.update()
-        # --- [NEW] Uncap framerate and get delta time ---
         # clock.tick() returns milliseconds since the last frame.
         # With vsync on, this loop will run at the monitor's refresh rate.
         delta_time = settings.clock.tick()

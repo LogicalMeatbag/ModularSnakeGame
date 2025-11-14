@@ -10,8 +10,7 @@ import base64
 import error_handler
 import binascii  # For error handling
 
-# --- [NEW 3.14 FEATURE] Conditionally import the zstd module ---
-# We try to import the new module. If it fails, we set a flag and move on.
+# Conditionally import the zstd module. If it fails, set a flag and move on.
 # This allows the code to run on older Python versions without crashing.
 try:
     import compression.zstd as zstd
@@ -32,8 +31,7 @@ def load_high_score(filepath):
                 if not encoded_score:
                     return 0
                 
-                # --- [NEW 3.14 FEATURE] Try to decompress if zstd was used ---
-                # The first byte tells us if it's compressed.
+                # Try to decompress if zstd was used (the first byte is a flag).
                 if ZSTD_AVAILABLE and encoded_score[0] == 1:
                     decoded_score = zstd.decompress(encoded_score[1:])
                 else:
@@ -66,9 +64,8 @@ def save_high_score(filepath, new_high_score):
         # Convert score to string, encode to utf-8 bytes
         str_score_bytes = str(new_high_score).encode('utf-8')
         
-        # --- [NEW 3.14 FEATURE] Use zstd compression if available ---
         if ZSTD_AVAILABLE:
-            # Compress the data and add a '1' byte at the start as a flag
+            # Compress the data and add a '1' byte at the start as a compression flag
             final_data = b'\x01' + zstd.compress(str_score_bytes)
         else:
             # On older Python, just use Base64

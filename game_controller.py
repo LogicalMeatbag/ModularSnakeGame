@@ -17,10 +17,8 @@ class GameController:
         """Initializes the game state."""
         self.snake = Snake()
         self.food = Food()
-        # --- [TEMPLATE] FOR NEW ENTITIES ---
-        # self.obstacles = Obstacle() 
+        # self.obstacles = Obstacle() # Example for new entities
         self.score = 0
-        # --- [NEW] Separate speed from normal speed for events ---
         self.normalSpeed = settings.startSpeed
         self.speed = settings.startSpeed
         self.high_score = score_manager.load_high_score(settings.highScoreFile)
@@ -29,8 +27,7 @@ class GameController:
         """Resets the game to its starting state."""
         self.snake.reset()
         self.food.reset(self.snake.get_body())
-        # --- [TEMPLATE] FOR NEW ENTITIES ---
-        # self.obstacles.reset()
+        # self.obstacles.reset() # Example for new entities
         self.score = 0
         self.normalSpeed = settings.startSpeed
         self.speed = self.normalSpeed
@@ -50,7 +47,6 @@ class GameController:
         """
         self.snake.update_position()
 
-        # --- [MODIFIED] Check for food collision ---
         eaten_food = self.food.check_collision(self.snake.get_head_pos())
         
         if eaten_food:
@@ -63,20 +59,18 @@ class GameController:
                 self.normalSpeed += 1 # Increase the base speed
             elif eaten_food['type'] == 'golden':
                 self.score += settings.goldenFoodScore
-            # --- [TEMPLATE] FOR NEW FOOD ---
-            # 6. Add the effect of eating the new food type.
             # elif eaten_food['type'] == 'speed':
             #     self.score += settings.speedFoodScore
             #     self.speed += 5 # e.g., temporary speed boost
             
-            # --- [FIX] Only spawn new food if a food event is not active ---
-            if not self.is_food_event_active(active_event):
-                # --- [NEW] Use debug override if active ---
-                chance = settings.debugSettings['goldenAppleChanceOverride'] if settings.debugMode else settings.goldenFoodChance
-                self.food.spawn_new_food(self.snake.get_body(), chance)
+            # Only spawn a new normal apple when a normal apple is eaten.
+            # This prevents the normal apple from respawning when a golden one is eaten, for instance.
+            if eaten_food['type'] == 'normal':
+                if not self.is_food_event_active(active_event):
+                    chance = settings.debugSettings['goldenAppleChanceOverride'] if settings.debugMode else settings.goldenFoodChance
+                    self.food.spawn_new_food(self.snake.get_body(), chance)
         else:
-            # --- [NEW] Only adjust speed if no event is active ---
-            # This prevents speed from resetting mid-event
+            # Only adjust speed if no speed-modifying event is active.
             if not self.is_speed_event_active():
                 self.speed = self.normalSpeed
             self.snake.move() # No food, so just move
@@ -85,11 +79,9 @@ class GameController:
         if self.snake.check_wall_collision() or self.snake.check_collision():
             return True  # Game is over
         
-        # --- [TEMPLATE] FOR NEW ENTITY COLLISIONS ---
         # for obstacle in self.obstacles.items:
         #     if self.snake.get_head_pos() == obstacle['pos']:
         #         settings.obstacleHitSound.play()
-        #     return True  # Game is over
 
         return False # Game continues
         
@@ -148,8 +140,7 @@ class GameController:
         """Draws all active game elements."""
         self.snake.draw(surface)
         self.food.draw(surface)
-        # --- [TEMPLATE] FOR NEW ENTITIES ---
-        # self.obstacles.draw(surface)
+        # self.obstacles.draw(surface) # Example for new entities
         # We draw the score here because it's part of the 'playing' screen
         ui.draw_score(surface, self.score, self.high_score)
 

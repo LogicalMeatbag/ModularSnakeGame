@@ -14,8 +14,6 @@ else:
     # Running as a .py script
     base_path = os.path.dirname(os.path.abspath(__file__)) # For assets next to the .py
 
-# --- [NEW] APP DATA PATH FOR HIGH SCORE ---
-# This is the professional way to store user-specific game data.
 def get_app_data_folder():
     app_data_path = os.getenv('APPDATA')
     if app_data_path:
@@ -34,13 +32,11 @@ highScoreFile = os.path.join(appDataFolder, "highscore.dat")
 pygame.init()
 pygame.mixer.init()
 
-# --- [MODIFIED] WINDOW & GAME CONSTANTS ---
 # Set a default starting size for the window.
 # The user can resize it.
 initialWidth = 1280
 initialHeight = 720
 
-# --- [NEW] DYNAMIC SCALING CONSTANTS ---
 # The grid dimensions are now fixed. The block size will change.
 gridWidth = 64  # Number of blocks horizontally
 gridHeight = 36 # Number of blocks vertically
@@ -54,8 +50,6 @@ yOffset = 0
 
 startSpeed = 15
 
-# --- [MODIFIED] CREATE THE RESIZABLE WINDOW ---
-# We create the window here so all other modules can draw on it
 # pygame.RESIZABLE allows the user to change the window size.
 # pygame.DOUBLEBUF is recommended for smoother rendering.
 gameTitle = "ANAHKEN's Modular Snake Game"
@@ -69,7 +63,6 @@ backgroundColor = (0, 0, 0) # The play area background
 borderColor = (40, 40, 40) # The color of the letterbox border
 uiElementColor = (100, 100, 100)  # For UI elements like inactive buttons
 
-# --- [NEW] PRE-DEFINED COLOR OPTIONS FOR SETTINGS MENU ---
 colorOptions = {
 # These are RGB color values for snake colors. 
     "Green": (0, 255, 0),
@@ -80,8 +73,6 @@ colorOptions = {
     "Cyan": (0, 255, 255), 
 }
 
-# --- [NEW] Special Food Settings ---
-# --- [NEW] CUSTOMIZABLE COLORS ---
 foodColor = (255, 0, 0) # A pure, bright red for maximum vibrancy
 gameOverColor = (255, 0, 0) # A bright, classic red for game over
 
@@ -90,13 +81,7 @@ gold = (255, 215, 0)  # Color for the special food
 goldenFoodScore = 5
 goldenFoodChance = 15 # Represents a 1 in 15 chance
 
-# --- [TEMPLATE] FOR NEW FOOD ---
-# To add a new food type, first define its properties here.
-# BLUE = (0, 100, 255) # 1. Add a new color for it.
-# speedFoodScore = 2 # 2. Define its score value.
-# speedFoodChance = 10 # 3. Define its spawn chance (e.g., 1 in 10).
-
-# --- [NEW] RANDOM EVENT SETTINGS ---
+# --- Random Event Settings ---
 EVENT_TIMER_MAX = 15 * 1000 # An event can trigger every 15 seconds (in milliseconds)
 EVENT_CHANCE = 25 # 25% chance to trigger an event when the timer is up
 EVENT_DURATION = 10 * 1000 # Most events last for 10 seconds
@@ -111,11 +96,7 @@ SMALL_SNAKE_SHRINK = 5
 RACECAR_SNAKE_SPEED_BOOST = 15
 SLOW_SNAKE_SPEED_REDUCTION = 5
 
-# --- [TEMPLATE] FOR NEW ENTITY COLORS ---
-# obstacleColor = (128, 128, 128)
-
 # --- DEFAULT SETTINGS DICTIONARY ---
-# --- [MODIFIED] Add keybinds to the default settings ---
 defaultSettings = {
     "snakeColorName": "Green",
     "keybinds": {
@@ -125,7 +106,6 @@ defaultSettings = {
         'RIGHT': [pygame.K_RIGHT, pygame.K_d],
     },
     "debugMode": False,
-    # --- [NEW] Default settings for the debug menu ---
     "debugSettings": {
         "showState": True,
         "showSnakePos": True,
@@ -149,7 +129,6 @@ userSettings = settings_manager.load_settings(settingsFile)
 if userSettings is None: userSettings = {} # Ensure userSettings is a dict
 
 # --- APPLY LOADED/DEFAULT SETTINGS ---
-# --- [FIX] Correctly load custom color on startup ---
 savedColorName = userSettings.get("snakeColorName", defaultSettings["snakeColorName"])
 
 if savedColorName == "Custom":
@@ -170,22 +149,11 @@ eatSoundFile = os.path.join(base_path, 'assets', 'sounds', 'eat.wav')
 gameOverSoundFile = os.path.join(base_path, 'assets', 'sounds', 'game_over.wav')
 buttonClickSoundFile = os.path.join(base_path, 'assets', 'sounds', 'click.wav')
 
-# --- LOAD ASSETS (FONTS & SOUNDS) ---
-# --- [TEMPLATE] FOR NEW SOUNDS ---
-# To add a new sound, first define its file path.
-# obstacleHitSoundFile = os.path.join(base_path, 'assets', 'sounds', 'obstacle_hit.wav')
-
-# --- [TEMPLATE] FOR IMAGES ---
-# To add an image (like a game icon), first define its file path.
 snakeHeadFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head.png')
 snakeBodyFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_straight.png')
 snakeTailFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_end.png')
 snakeTurnFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_corner.png')
 
-# --- [TESTING] How to test for a missing image file ---
-# To test the fatal error message, temporarily uncomment the line below.
-# It points to a non-existent file, forcing the pygame.error to trigger.
-# snakeHeadFile = "non_existent_file.png"
 appleFile = os.path.join(base_path, 'assets', 'images', 'food', 'apple.png') # Assumed path for the apple
 
 try:
@@ -193,8 +161,6 @@ try:
     gameOverSound = pygame.mixer.Sound(gameOverSoundFile)
     buttonClickSound = pygame.mixer.Sound(buttonClickSoundFile)
     buttonClickSound.set_volume(0.5) # Set volume to 50%
-    # --- [TEMPLATE] FOR LOADING NEW SOUNDS ---
-    # obstacleHitSound = pygame.mixer.Sound(obstacleHitSoundFile)
 except pygame.error as e:
     errorMessage = (
         f"Could not load a sound file.\n\nDetails: {e}\n\n"
@@ -205,9 +171,8 @@ except pygame.error as e:
     eatSound = pygame.mixer.Sound(buffer=b'') 
     gameOverSound = pygame.mixer.Sound(buffer=b'')
     buttonClickSound = pygame.mixer.Sound(buffer=b'')
-    # obstacleHitSound = pygame.mixer.Sound(buffer=b'')
 
-# --- [NEW] Load Snake Sprites in a separate block for better error handling ---
+# Load Snake Sprites in a separate block for better error handling
 try:
     snakeImages = {
         'head': pygame.image.load(snakeHeadFile).convert_alpha(),
@@ -222,7 +187,7 @@ except pygame.error as e:
     )
     error_handler.show_error_message("Fatal Asset Error", errorMessage, isFatal=True)
 
-# --- [NEW] Load Food Sprites ---
+# Load Food Sprites
 try:
     foodImages = {
         'apple': pygame.image.load(appleFile).convert_alpha(),

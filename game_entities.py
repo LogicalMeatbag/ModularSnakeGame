@@ -11,17 +11,14 @@ import ui # Import ui to access the new tint_surface utility
 class Snake:
     def __init__(self):
         self.reset()
-        # --- [NEW] For efficient sprite scaling ---
         self.scaled_images = {}
         self.last_block_size = -1 # Force a rescale on the first draw
-        # --- [NEW] For temporary size change events ---
         self.pre_event_length = 0
         self.is_size_event_active = False
 
 
     def reset(self):
         """Resets the snake to its starting position and state."""
-        # --- [REFACTOR] Use grid coordinates instead of pixels ---
         start_x = settings.gridWidth // 2
         start_y = settings.gridHeight // 2
         self.pos = [start_x, start_y]
@@ -126,7 +123,7 @@ class Snake:
 
     def _update_scaled_images(self):
         """
-        [FIX] Re-scales the snake sprites only when the block size changes.
+        Re-scales the snake sprites only when the block size changes.
         This is far more efficient and prevents scaling-related alignment bugs.
         """
         if self.last_block_size != settings.blockSize:
@@ -139,7 +136,7 @@ class Snake:
 
     def _rotate_and_center(self, image, angle, cell_rect):
         """
-        [FINAL FIX] Rotates an image and correctly recalculates its center point
+        Rotates an image and correctly recalculates its center point
         to avoid all floating-point and rounding errors. This is the definitive
         solution to the 1-pixel misalignment bug.
         """
@@ -158,8 +155,6 @@ class Snake:
 
         for index, segment in enumerate(self.body):
             # The segment's screen position
-            # --- [FINAL FIX] Use integers for all rect calculations ---
-            # --- [REFACTOR] Convert grid coordinates to screen pixels here ---
             rect = pygame.Rect(
                 int(segment[0] * self.last_block_size + settings.xOffset), 
                 int(segment[1] * self.last_block_size + settings.yOffset), 
@@ -168,7 +163,7 @@ class Snake:
             )
 
             if index == 0:  # Head
-                # --- [FIX] Head orientation should be based on its current direction of travel ---
+                # Head orientation should be based on its current direction of travel
                 image_to_rotate = self.scaled_images['head']
                 if self.direction == 'UP':
                     angle = 0
@@ -182,7 +177,7 @@ class Snake:
 
             elif index == len(self.body) - 1:  # Tail
                 image_to_rotate = self.scaled_images['tail']
-                # --- [FIX] Use vector subtraction to find the correct direction ---
+                # Use vector subtraction to find the correct direction
                 prev_segment = self.body[index - 1]
                 vec_x = prev_segment[0] - segment[0]
                 vec_y = prev_segment[1] - segment[1]
@@ -211,7 +206,7 @@ class Snake:
                 # Turn piece
                 else:
                     image_to_rotate = self.scaled_images['turn']
-                    # --- [FIX] Use vector subtraction for reliable corner detection ---
+                    # Use vector subtraction for reliable corner detection
                     prev_vec_x = prev_segment[0] - segment[0]
                     prev_vec_y = prev_segment[1] - segment[1]
                     next_vec_x = next_segment[0] - segment[0]
@@ -237,7 +232,6 @@ class Snake:
 class Food:
     def __init__(self):
         """Manages a list of all food items on the screen."""
-        # --- [NEW] For efficient sprite scaling ---
         self.scaled_images = {}
         self.last_block_size = -1 # Force a rescale on the first draw
         self.items = []
@@ -258,22 +252,30 @@ class Food:
     def _spawn_item(self, food_type, snake_body):
         """
         Internal helper to spawn a single food item of a given type.
-        Ensures it doesn't spawn on the snake or other food.
+        Ensures it doesn't spawn on the snake, other food, on the very edge of the screen,
+        or too close to other food items.
         """
         occupied_positions = snake_body + [item['pos'] for item in self.items]
+        MIN_FOOD_DISTANCE = 3 # Minimum grid spaces between two food items
 
         while True:
             pos = [
-                random.randrange(0, settings.gridWidth),
-                random.randrange(0, settings.gridHeight)
+                random.randrange(1, settings.gridWidth - 1),
+                random.randrange(1, settings.gridHeight - 1)
             ]
-            if pos not in occupied_positions:
+
+            is_too_close = False
+            for item in self.items:
+                dist = abs(pos[0] - item['pos'][0]) + abs(pos[1] - item['pos'][1])
+                if dist < MIN_FOOD_DISTANCE:
+                    is_too_close = True
+                    break
+
+            if pos not in snake_body and not is_too_close:
                 if food_type == 'normal':
                     self.items.append({'pos': pos, 'type': 'normal', 'color': settings.foodColor})
                 elif food_type == 'golden':
                     self.items.append({'pos': pos, 'type': 'golden', 'color': settings.gold})
-                # --- [TEMPLATE] FOR NEW FOOD ---
-                # 4. Add the logic to create the new food item dictionary.
                 # elif food_type == 'speed':
                 #     self.items.append({'pos': pos, 'type': 'speed', 'color': settings.blue})
                 break
@@ -281,20 +283,13 @@ class Food:
     def spawn_new_food(self, snake_body, golden_chance):
         """Public method called after food is eaten. Spawns a new normal food
         and has a chance to spawn a golden one."""
-        # --- [FIX] When spawning a new normal apple, first remove any other existing normal apples. ---
-        # This prevents normal apples from accumulating after a golden one is eaten.
+        # When spawning a new normal apple, first remove any other existing normal apples.
         self.items = [item for item in self.items if item['type'] != 'normal']
 
-        # Now, spawn a single new normal apple.
         self._spawn_item('normal', snake_body)
         
         if random.randint(1, golden_chance) == 1:
             self._spawn_item('golden', snake_body)
-        
-        # --- [TEMPLATE] FOR NEW FOOD ---
-        # 5. Add the logic to spawn the new food based on its chance.
-        # if random.randint(1, settings.speedFoodChance) == 1:
-        #     self._spawn_item('speed', snake_body)
 
     def check_collision(self, snake_head_pos):
         """
@@ -324,7 +319,6 @@ class Food:
         self._update_scaled_images() # Ensure sprites are the correct size
 
         for item in self.items:
-            # --- [REFACTOR] Convert grid coordinates to screen pixels here ---
             rect = pygame.Rect(
                 int(item['pos'][0] * self.last_block_size + settings.xOffset), 
                 int(item['pos'][1] * self.last_block_size + settings.yOffset), 
@@ -334,33 +328,6 @@ class Food:
             apple_sprite = self.scaled_images['apple']
             colored_apple = ui.tint_surface(apple_sprite, item['color'])
             surface.blit(colored_apple, rect)
-
-# --- [TEMPLATE] FOR NEW GAME ENTITIES (like Obstacles) ---
-# class Obstacle:
-#     def __init__(self):
-#         """Manages a list of all obstacles on the screen."""
-#         self.items = []
-
-#     def reset(self):
-#         """Clears all obstacles."""
-#         self.items.clear()
-
-#     def spawn(self, occupied_positions):
-#         """Spawns a new obstacle, avoiding other items."""
-#         while True:
-#             pos = [
-#                 random.randrange(0, settings.gridWidth) * settings.blockSize,
-#                 random.randrange(0, settings.gridHeight) * settings.blockSize
-#             ]
-#             if pos not in occupied_positions:
-#                 self.items.append({'pos': pos})
-#                 break
-    
-#     def draw(self, surface):
-#         """Draws all obstacles."""
-#         for item in self.items:
-#             rect = pygame.Rect(item['pos'][0] + settings.xOffset, item['pos'][1] + settings.yOffset, settings.blockSize, settings.blockSize)
-#             pygame.draw.rect(surface, settings.obstacleColor, rect)
 
 if __name__ == "__main__":
     import os
