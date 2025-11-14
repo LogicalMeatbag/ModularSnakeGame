@@ -9,6 +9,12 @@ import sys
 import os
 import error_handler
 
+# --- [NEW] Set up global exception handler ---
+# This will catch any error that isn't explicitly handled elsewhere
+# and display it in a user-friendly GUI window before the program
+# terminates. This is our safety net for all unanticipated errors.
+sys.excepthook = error_handler.handle_uncaught_exception
+
 # --- 1. Python Version Check ---
 # We check for a minimum version, not a specific one.
 # 3.8 is a safe, modern minimum.

@@ -4,6 +4,7 @@ error_handler.py
 - Uses a GUI popup (tkinter) when possible, with a fallback to the console.
 """
 import sys
+import traceback
 
 def show_error_message(title, message, isFatal=False):
     """
@@ -32,3 +33,24 @@ def show_error_message(title, message, isFatal=False):
 
     if isFatal:
         sys.exit(1)
+
+def handle_uncaught_exception(exc_type, exc_value, exc_traceback):
+    """
+    A global exception hook to catch any unhandled exceptions.
+    It formats the error and displays it using the GUI handler.
+    This function's signature is required by sys.excepthook.
+    """
+    # Format the traceback into a string for the error message.
+    tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+    error_details = "".join(tb_lines)
+
+    # Create a user-friendly message that includes the technical details.
+    error_message = (
+        "An unexpected error has occurred and the game must close.\n\n"
+        "Please report this issue to the developer.\n\n"
+        "--- Error Details ---\n"
+        f"{error_details}"
+    )
+
+    # Use our existing GUI handler to show the fatal error.
+    show_error_message("Unhandled Exception", error_message, isFatal=True)

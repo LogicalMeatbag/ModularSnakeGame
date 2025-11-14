@@ -6,6 +6,7 @@ settings_manager.py
 """
 import os
 import json
+import error_handler
 
 def get_settings_path(game_data_folder):
     """Constructs the path for the settings.dat file."""
@@ -19,7 +20,11 @@ def save_settings(filepath, settings_data):
         with open(filepath, 'w') as f:
             json.dump(settings_data, f, indent=4)
     except IOError as e:
-        print(f"Warning: Unable to save settings file. Error: {e}")
+        errorMessage = (
+            f"Your settings could not be saved.\n\nDetails: {e}\n\n"
+            "Please ensure the game has permission to write to its data folder."
+        )
+        error_handler.show_error_message("File Save Error", errorMessage)
 
 def load_settings(filepath):
     """
@@ -35,7 +40,11 @@ def load_settings(filepath):
                     return None
                 return json.loads(content)
         except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Could not read settings file, it may be corrupt. Error: {e}")
+            errorMessage = (
+                "The settings file ('settings.dat') was found to be corrupt or unreadable.\n\n"
+                f"Details: {e}\n\nYour settings have been reset to default."
+            )
+            error_handler.show_error_message("File Warning", errorMessage)
             # We return None and let the game create a new default file.
             return None
     return None
