@@ -108,3 +108,4 @@ This project is set up to be easily bundled into a single executable using **PyI
 ## License
 
 This project is open source and available under the MIT License.
+
