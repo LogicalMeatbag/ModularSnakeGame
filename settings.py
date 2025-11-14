@@ -66,6 +66,7 @@ except (pygame.error, FileNotFoundError) as e:
     errorMessage = (
         f"The game icon could not be loaded.\n\nDetails: {e}\n\n"
         "Please ensure 'assets/images/icon.png' exists."
+        "The game will continue without a custom window icon."
     )
     error_handler.show_error_message("Asset Warning", errorMessage)
 clock = pygame.time.Clock()
