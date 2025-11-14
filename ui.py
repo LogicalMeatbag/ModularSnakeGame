@@ -137,8 +137,11 @@ def draw_settings_menu(surface, current_color_name):
     surface.blit(save_surface, save_surface.get_rect(center=save_rect.center))
 
     # --- [MODIFIED] Return the rect for the color name text, which is now below the preview ---
+    # --- [FIX] Add padding to prevent text from overlapping with the snake preview ---
+    spriteHeight = settings.snakeImages['head'].get_height()
+    text_y_pos = win_h * 0.5 + (spriteHeight / 2) + 20 # Half sprite height + 20px padding
     color_name_surface = settings.scoreFont.render(current_color_name, True, settings.snakeColor)
-    color_name_rect = color_name_surface.get_rect(center=(win_w / 2, win_h * 0.5 + settings.snakeImages['head'].get_height()))
+    color_name_rect = color_name_surface.get_rect(center=(win_w / 2, text_y_pos))
     surface.blit(color_name_surface, color_name_rect)
 
     return {'left': left_arrow_rect, 'right': right_arrow_rect, 'keybinds': keybinds_rect, 'save': save_rect, 'color_name_display': color_name_rect}
