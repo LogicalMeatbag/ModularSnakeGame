@@ -1,6 +1,7 @@
 import pygame
 import os
 import sys
+import error_handler
 import settings_manager
 
 # --- PYINSTALLER PATH FIX ---
@@ -134,6 +135,7 @@ keybinds = userSettings.get("keybinds", defaultSettings["keybinds"])
 # --- FILE PATHS ---
 eatSoundFile = os.path.join(base_path, 'assets', 'sounds', 'eat.wav')
 gameOverSoundFile = os.path.join(base_path, 'assets', 'sounds', 'game_over.wav')
+buttonClickSoundFile = os.path.join(base_path, 'assets', 'sounds', 'click.wav')
 
 # --- LOAD ASSETS (FONTS & SOUNDS) ---
 # --- [TEMPLATE] FOR NEW SOUNDS ---
@@ -146,18 +148,31 @@ snakeHeadFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head
 snakeBodyFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_straight.png')
 snakeTailFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_end.png')
 snakeTurnFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_corner.png')
+
+# --- [TESTING] How to test for a missing image file ---
+# To test the fatal error message, temporarily uncomment the line below.
+# It points to a non-existent file, forcing the pygame.error to trigger.
+# snakeHeadFile = "non_existent_file.png"
 appleFile = os.path.join(base_path, 'assets', 'images', 'food', 'apple.png') # Assumed path for the apple
 
 try:
     eatSound = pygame.mixer.Sound(eatSoundFile)
     gameOverSound = pygame.mixer.Sound(gameOverSoundFile)
+    buttonClickSound = pygame.mixer.Sound(buttonClickSoundFile)
+    buttonClickSound.set_volume(0.5) # Set volume to 50%
     # --- [TEMPLATE] FOR LOADING NEW SOUNDS ---
     # obstacleHitSound = pygame.mixer.Sound(obstacleHitSoundFile)
 except pygame.error as e:
     print(f"Warning: Could not load sound files: {e}")
+    errorMessage = (
+        f"Could not load a sound file.\n\nDetails: {e}\n\n"
+        "The game will run without sound, but please ensure the 'assets/sounds' folder is correct."
+    )
+    error_handler.show_error_message("Asset Warning", errorMessage)
     # Create "dummy" sound objects
     eatSound = pygame.mixer.Sound(buffer=b'') 
     gameOverSound = pygame.mixer.Sound(buffer=b'')
+    buttonClickSound = pygame.mixer.Sound(buffer=b'')
     # obstacleHitSound = pygame.mixer.Sound(buffer=b'')
 
 # --- [NEW] Load Snake Sprites in a separate block for better error handling ---
@@ -172,6 +187,11 @@ except pygame.error as e:
     print(f"FATAL: Could not load snake image files: {e}")
     print("Please ensure the 'assets/images/snake/' folder and its contents are correct.")
     snakeImages = {} # Set to empty dict so the game doesn't crash immediately
+    errorMessage = (
+        f"A critical image file for the snake could not be loaded.\n\nDetails: {e}\n\n"
+        "Please ensure the 'assets/images/snake/' folder and all its contents are present."
+    )
+    error_handler.show_error_message("Fatal Asset Error", errorMessage, isFatal=True)
 
 # --- [NEW] Load Food Sprites ---
 try:
@@ -181,6 +201,11 @@ try:
 except pygame.error as e:
     print(f"FATAL: Could not load food image files: {e}")
     foodImages = {}
+    errorMessage = (
+        f"The image file for the food could not be loaded.\n\nDetails: {e}\n\n"
+        "Please ensure the 'assets/images/food/' folder and all its contents are present."
+    )
+    error_handler.show_error_message("Fatal Asset Error", errorMessage, isFatal=True)
 
 try:
     scoreFont = pygame.font.SysFont('timesnewroman', 35)
@@ -188,6 +213,11 @@ try:
     smallFont = pygame.font.SysFont('timesnewroman', 30)
 except Exception as e:
     print(f"Warning: Could not load fonts. Using default. Error: {e}")
+    errorMessage = (
+        f"A system font could not be loaded.\n\nDetails: {e}\n\n"
+        "The game will continue with a default font."
+    )
+    error_handler.show_error_message("Font Warning", errorMessage)
     scoreFont = pygame.font.Font(None, 35)
     titleFont = pygame.font.Font(None, 60)
     smallFont = pygame.font.Font(None, 30)
