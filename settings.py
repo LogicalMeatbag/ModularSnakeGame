@@ -163,7 +163,6 @@ try:
     # --- [TEMPLATE] FOR LOADING NEW SOUNDS ---
     # obstacleHitSound = pygame.mixer.Sound(obstacleHitSoundFile)
 except pygame.error as e:
-    print(f"Warning: Could not load sound files: {e}")
     errorMessage = (
         f"Could not load a sound file.\n\nDetails: {e}\n\n"
         "The game will run without sound, but please ensure the 'assets/sounds' folder is correct."
@@ -184,9 +183,6 @@ try:
         'turn': pygame.image.load(snakeTurnFile).convert_alpha(),
     }
 except pygame.error as e:
-    print(f"FATAL: Could not load snake image files: {e}")
-    print("Please ensure the 'assets/images/snake/' folder and its contents are correct.")
-    snakeImages = {} # Set to empty dict so the game doesn't crash immediately
     errorMessage = (
         f"A critical image file for the snake could not be loaded.\n\nDetails: {e}\n\n"
         "Please ensure the 'assets/images/snake/' folder and all its contents are present."
@@ -199,8 +195,6 @@ try:
         'apple': pygame.image.load(appleFile).convert_alpha(),
     }
 except pygame.error as e:
-    print(f"FATAL: Could not load food image files: {e}")
-    foodImages = {}
     errorMessage = (
         f"The image file for the food could not be loaded.\n\nDetails: {e}\n\n"
         "Please ensure the 'assets/images/food/' folder and all its contents are present."
@@ -212,7 +206,6 @@ try:
     titleFont = pygame.font.SysFont(None, 60)
     smallFont = pygame.font.SysFont(None, 30)
 except Exception as e:
-    print(f"Warning: Could not load fonts. Using default. Error: {e}")
     errorMessage = (
         f"A system font could not be loaded.\n\nDetails: {e}\n\n"
         "The game will continue with a default font."

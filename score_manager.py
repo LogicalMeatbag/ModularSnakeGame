@@ -6,6 +6,7 @@ score_manager.py
 """
 import os
 import base64
+import error_handler
 import binascii  # For error handling
 
 # --- [NEW 3.14 FEATURE] Conditionally import the zstd module ---
@@ -42,6 +43,11 @@ def load_high_score(filepath):
         except (ValueError, binascii.Error, IOError, EOFError):
             # File is corrupt, empty, or unreadable.
             # We can overwrite it with 0.
+            errorMessage = (
+                "The high score file ('highscore.dat') was found to be corrupt or unreadable.\n\n"
+                "Your high score has been reset to 0."
+            )
+            error_handler.show_error_message("File Warning", errorMessage)
             save_high_score(filepath, 0)
             return 0
     return 0
@@ -67,7 +73,11 @@ def save_high_score(filepath, new_high_score):
         with open(filepath, 'wb') as f:
             f.write(final_data)
     except IOError as e:
-        print(f"Warning: Unable to save high score file. Error: {e}")
+        errorMessage = (
+            f"The high score could not be saved.\n\nDetails: {e}\n\n"
+            "Please ensure the game has permission to write to its data folder."
+        )
+        error_handler.show_error_message("File Save Error", errorMessage)
 
 if __name__ == "__main__":
     import os
