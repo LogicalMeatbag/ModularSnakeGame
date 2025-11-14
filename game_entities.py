@@ -6,6 +6,7 @@ game_entities.py
 import pygame
 import random
 import settings
+import ui # Import ui to access the new tint_surface utility
 
 class Snake:
     def __init__(self):
@@ -87,18 +88,6 @@ class Snake:
     def get_body(self):
         """Returns the list of body segments."""
         return self.body
-
-    def _color_surface(self, surface, color):
-        """
-        Colors a white/grayscale surface with the given color, preserving transparency.
-        """
-        # This is the correct and final method for tinting a grayscale sprite.
-        # 1. Create a new surface filled with the tint color.
-        colored_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        colored_surface.fill(color)
-        # 2. Use the grayscale sprite as a mask to multiply the tint.
-        colored_surface.blit(surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-        return colored_surface
 
     def _update_scaled_images(self):
         """
@@ -206,7 +195,7 @@ class Snake:
                 final_image, final_rect = self._rotate_and_center(image_to_rotate, angle, rect)
 
             # Color the final image and draw it
-            colored_image = self._color_surface(final_image, settings.snakeColor)
+            colored_image = ui.tint_surface(final_image, settings.snakeColor)
             surface.blit(colored_image, final_rect)
 
 
@@ -272,18 +261,6 @@ class Food:
                 return food_item
         return None
 
-    def _color_surface(self, surface, color):
-        """
-        Colors a white/grayscale surface with the given color, preserving transparency.
-        """
-        # This is the correct and final method for tinting a grayscale sprite.
-        # 1. Create a new surface filled with the tint color.
-        colored_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        colored_surface.fill(color)
-        # 2. Use the grayscale sprite as a mask to multiply the tint.
-        colored_surface.blit(surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-        return colored_surface
-
     def _update_scaled_images(self):
         """
         Re-scales the food sprites only when the block size changes.
@@ -309,7 +286,7 @@ class Food:
                 self.last_block_size
             )
             apple_sprite = self.scaled_images['apple']
-            colored_apple = self._color_surface(apple_sprite, item['color'])
+            colored_apple = ui.tint_surface(apple_sprite, item['color'])
             surface.blit(colored_apple, rect)
 
 # --- [TEMPLATE] FOR NEW GAME ENTITIES (like Obstacles) ---

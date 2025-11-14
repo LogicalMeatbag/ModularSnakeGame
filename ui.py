@@ -7,6 +7,41 @@ ui.py
 import pygame
 import settings
 
+def tint_surface(surface, color):
+    """
+    Utility function to color a white/grayscale surface, preserving transparency.
+    """
+    # This is the correct and final method for tinting a grayscale sprite.
+    # 1. Create a new surface filled with the tint color.
+    colored_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+    colored_surface.fill(color)
+    # 2. Use the grayscale sprite as a mask to multiply the tint.
+    colored_surface.blit(surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return colored_surface
+
+def _draw_snake_preview(surface, y_pos, color):
+    """
+    Internal helper to draw a centered, right-facing 3-segment snake preview.
+    """
+    win_w, _ = surface.get_size()
+    preview_center_x = win_w / 2
+
+    # --- [FIX] Rotate sprites to face right ---
+    head = pygame.transform.rotate(settings.snakeImages['head'], -90)
+    body = pygame.transform.rotate(settings.snakeImages['body'], 90)
+    tail = pygame.transform.rotate(settings.snakeImages['tail'], -90)
+
+    # Tint the rotated sprites
+    tinted_head = tint_surface(head, color)
+    tinted_body = tint_surface(body, color)
+    tinted_tail = tint_surface(tail, color)
+
+    # --- [FIX] Center the entire snake, not just one part ---
+    # The body is the center of the preview.
+    surface.blit(tinted_body, tinted_body.get_rect(center=(preview_center_x, y_pos)))
+    surface.blit(tinted_head, tinted_head.get_rect(center=(preview_center_x + body.get_width(), y_pos)))
+    surface.blit(tinted_tail, tinted_tail.get_rect(center=(preview_center_x - body.get_width(), y_pos)))
+
 def draw_score(surface, score, high_score):
     """Draws the current score and high score."""
     score_surface = settings.scoreFont.render(f'Score: {score}  High Score: {high_score}', True, settings.white)
@@ -64,42 +99,57 @@ def draw_settings_menu(surface, current_color_name):
     color_label_rect = color_label_surface.get_rect(center=(win_w / 2, win_h * 0.4))
     surface.blit(color_label_surface, color_label_rect)
 
+    # --- [NEW] Snake Preview ---
+    # Use the new helper function to draw the preview
+    _draw_snake_preview(surface, win_h * 0.5, settings.snakeColor)
+
     # --- Color Selector ---
     # Left Arrow
+    # --- [FIX] Position arrows relative to the snake preview width ---
+    arrow_offset = settings.snakeImages['head'].get_width() * 1.5 + 40 # 1.5 blocks for half the snake, plus 40px padding
     left_arrow_rect = pygame.Rect(0, 0, 50, 50)
-    left_arrow_rect.center = (win_w / 2 - 150, win_h * 0.5)
+    left_arrow_rect.center = (win_w / 2 - arrow_offset, win_h * 0.5)
     left_arrow_color = settings.white if left_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
     left_arrow_surf = settings.scoreFont.render("<", True, left_arrow_color)
     surface.blit(left_arrow_surf, left_arrow_surf.get_rect(center=left_arrow_rect.center))
 
-    # Color Name
-    color_value_surface = settings.scoreFont.render(current_color_name, True, settings.colorOptions[current_color_name])
-    surface.blit(color_value_surface, color_value_surface.get_rect(center=(win_w / 2, win_h * 0.5)))
-
     # Right Arrow
     right_arrow_rect = pygame.Rect(0, 0, 50, 50)
-    right_arrow_rect.center = (win_w / 2 + 150, win_h * 0.5)
+    right_arrow_rect.center = (win_w / 2 + arrow_offset, win_h * 0.5)
     right_arrow_color = settings.white if right_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
     right_arrow_surf = settings.scoreFont.render(">", True, right_arrow_color)
     surface.blit(right_arrow_surf, right_arrow_surf.get_rect(center=right_arrow_rect.center))
 
     # Keybinds Button
-    keybinds_rect = pygame.Rect(0, 0, 250, 50)
+    # --- [FIX] Dynamically size the button based on the text width ---
+    keybindsText = "Configure Controls"
+    keybindsSurface = settings.scoreFont.render(keybindsText, True, settings.white) # Render once to get size
+    keybinds_rect = pygame.Rect(0, 0, keybindsSurface.get_width() + 40, 50) # Add 20px padding on each side
     keybinds_rect.center = (win_w / 2, win_h * 0.7)
-    keybinds_color = settings.white if keybinds_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    pygame.draw.rect(surface, keybinds_color, keybinds_rect, 2, 5)
-    keybinds_surface = settings.scoreFont.render("Configure Controls", True, keybinds_color)
-    surface.blit(keybinds_surface, keybinds_surface.get_rect(center=keybinds_rect.center))
+    keybindsColor = settings.white if keybinds_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    pygame.draw.rect(surface, keybindsColor, keybinds_rect, 2, 5)
+    keybindsSurface = settings.scoreFont.render(keybindsText, True, keybindsColor) # Re-render with hover color
+    surface.blit(keybindsSurface, keybindsSurface.get_rect(center=keybinds_rect.center))
 
     # Save Button
-    save_rect = pygame.Rect(0, 0, 250, 50)
+    saveText = "Back to Menu"
+    saveSurface = settings.scoreFont.render(saveText, True, settings.white)
+    save_rect = pygame.Rect(0, 0, saveSurface.get_width() + 40, 50)
     save_rect.center = (win_w / 2, win_h * 0.85)
-    save_color = settings.white if save_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    pygame.draw.rect(surface, save_color, save_rect, 2, 5)
-    save_surface = settings.scoreFont.render("Back to Menu", True, save_color)
-    surface.blit(save_surface, save_surface.get_rect(center=save_rect.center))
+    saveColor = settings.white if save_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    pygame.draw.rect(surface, saveColor, save_rect, 2, 5)
+    saveSurface = settings.scoreFont.render(saveText, True, saveColor) # Re-render with hover color
+    surface.blit(saveSurface, saveSurface.get_rect(center=save_rect.center))
 
-    return {'left': left_arrow_rect, 'right': right_arrow_rect, 'keybinds': keybinds_rect, 'save': save_rect}
+    # --- [MODIFIED] Return the rect for the color name text, which is now below the preview ---
+    # --- [FIX] Add padding to prevent text from overlapping with the snake preview ---
+    spriteHeight = settings.snakeImages['head'].get_height()
+    text_y_pos = win_h * 0.5 + (spriteHeight / 2) + 20 # Half sprite height + 20px padding
+    color_name_surface = settings.scoreFont.render(current_color_name, True, settings.snakeColor)
+    color_name_rect = color_name_surface.get_rect(center=(win_w / 2, text_y_pos))
+    surface.blit(color_name_surface, color_name_rect)
+
+    return {'left': left_arrow_rect, 'right': right_arrow_rect, 'keybinds': keybinds_rect, 'save': save_rect, 'color_name_display': color_name_rect}
 
 def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
     """Draws the keybinding configuration screen."""
@@ -154,7 +204,7 @@ def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
 
     return buttons
 
-def draw_custom_color_menu(surface, temp_color):
+def draw_custom_color_menu(surface, temp_color, editing_component=None, input_string=""):
     """Draws the UI for creating a custom RGB color."""
     win_w, win_h = surface.get_size()
     mouse_pos = pygame.mouse.get_pos()
@@ -166,10 +216,7 @@ def draw_custom_color_menu(surface, temp_color):
     surface.blit(title_surface, title_rect)
 
     # Color Preview
-    preview_rect = pygame.Rect(0, 0, 100, 100)
-    preview_rect.center = (win_w / 2, win_h * 0.3)
-    pygame.draw.rect(surface, temp_color, preview_rect)
-    pygame.draw.rect(surface, settings.white, preview_rect, 2, 5) # Border
+    _draw_snake_preview(surface, win_h * 0.3, temp_color)
 
     # RGB Sliders
     y_pos = win_h * 0.5
@@ -178,9 +225,24 @@ def draw_custom_color_menu(surface, temp_color):
         label_surface = settings.scoreFont.render(component, True, settings.white)
         surface.blit(label_surface, label_surface.get_rect(midright=(win_w / 2 - 170, y_pos)))
 
-        # Value
-        value_surface = settings.scoreFont.render(str(temp_color[i]), True, settings.white)
-        surface.blit(value_surface, value_surface.get_rect(center=(win_w / 2, y_pos)))
+        # --- [NEW] Value display / text input box ---
+        value_rect = pygame.Rect(0, 0, 100, 40)
+        value_rect.center = (win_w / 2, y_pos)
+        buttons[f'edit_{component}'] = value_rect # Add rect for click detection
+
+        if editing_component == component:
+            # Draw an active input box with a blinking cursor
+            pygame.draw.rect(surface, settings.white, value_rect, 2, 5)
+            # Blinking cursor: visible for 500ms, invisible for 500ms
+            cursor_visible = (pygame.time.get_ticks() // 500) % 2 == 0
+            text_to_draw = input_string + ('|' if cursor_visible else '')
+            value_surface = settings.scoreFont.render(text_to_draw, True, settings.white)
+        else:
+            # Draw an inactive value display
+            pygame.draw.rect(surface, settings.uiElementColor, value_rect, 2, 5)
+            value_surface = settings.scoreFont.render(str(temp_color[i]), True, settings.white)
+        
+        surface.blit(value_surface, value_surface.get_rect(center=value_rect.center))
 
         # Decrement Button
         dec_rect = pygame.Rect(0, 0, 50, 40)
@@ -248,15 +310,15 @@ def draw_game_over_screen(surface, score, high_score):
     restart_surface = settings.scoreFont.render("Restart", True, restart_color)
     surface.blit(restart_surface, restart_surface.get_rect(center=restart_rect.center))
 
-    # Quit Button
-    quit_rect = pygame.Rect(0, 0, 200, 50)
-    quit_rect.center = (win_w / 2, win_h * 0.8)
-    quit_color = settings.white if quit_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    pygame.draw.rect(surface, quit_color, quit_rect, 2, 5)
-    quit_surface = settings.scoreFont.render("Quit", True, quit_color)
-    surface.blit(quit_surface, quit_surface.get_rect(center=quit_rect.center))
+    # --- [MODIFIED] Main Menu Button ---
+    mainMenuRect = pygame.Rect(0, 0, 200, 50)
+    mainMenuRect.center = (win_w / 2, win_h * 0.8)
+    mainMenuColor = settings.white if mainMenuRect.collidepoint(mouse_pos) else settings.uiElementColor
+    pygame.draw.rect(surface, mainMenuColor, mainMenuRect, 2, 5)
+    mainMenuSurface = settings.scoreFont.render("Main Menu", True, mainMenuColor)
+    surface.blit(mainMenuSurface, mainMenuSurface.get_rect(center=mainMenuRect.center))
 
-    return {'restart': restart_rect, 'quit': quit_rect}
+    return {'restart': restart_rect, 'mainMenu': mainMenuRect}
 
 if __name__ == "__main__":
     import os
