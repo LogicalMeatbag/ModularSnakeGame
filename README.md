@@ -13,7 +13,7 @@ A classic implementation of the Snake game, built with Python and Pygame, featur
     *   **Keybinding Configuration**: Remap your controls for up, down, left, and right movements.
 *   **Modern & Resizable Window**: Start at any size and resize the window on the fly. The game grid adapts automatically.
 *   **Persistent High Score**: Your best score is automatically saved (and compressed!) in your user profile's AppData folder.
-*   **Polished UI/UX**: Enjoy sprite-based graphics, intelligent food spawning, a pause menu, and satisfying audio feedback.
+*   **Polished UI/UX**: Enjoy a custom window icon, sprite-based graphics, intelligent food spawning, a pause menu, and satisfying audio feedback.
 *   **Clean, Modular Code**: The project is split into logical modules, making it easy to understand and extend.
 *   **Robust Error Handling**: Clear, visual error messages guide the user if assets are missing or the environment is set up incorrectly.
 *   **Developer-Friendly Features**:

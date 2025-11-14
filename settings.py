@@ -55,6 +55,19 @@ startSpeed = 15
 gameTitle = "ANAHKEN's Modular Snake Game"
 window = pygame.display.set_mode((initialWidth, initialHeight), pygame.RESIZABLE | pygame.DOUBLEBUF, vsync=1)
 pygame.display.set_caption(gameTitle)
+
+# --- SET WINDOW ICON ---
+iconFile = os.path.join(base_path, 'assets', 'images', 'icon.png')
+try:
+    gameIcon = pygame.image.load(iconFile).convert_alpha()
+    pygame.display.set_icon(gameIcon)
+except pygame.error as e:
+    # This is not a fatal error, the game can run without an icon.
+    errorMessage = (
+        f"The game icon could not be loaded.\n\nDetails: {e}\n\n"
+        "Please ensure 'assets/images/icon.png' exists."
+    )
+    error_handler.show_error_message("Asset Warning", errorMessage)
 clock = pygame.time.Clock()
 
 # --- COLORS ---
@@ -148,6 +161,7 @@ debugSettings = userSettings.get("debugSettings", defaultSettings["debugSettings
 eatSoundFile = os.path.join(base_path, 'assets', 'sounds', 'eat.wav')
 gameOverSoundFile = os.path.join(base_path, 'assets', 'sounds', 'game_over.wav')
 buttonClickSoundFile = os.path.join(base_path, 'assets', 'sounds', 'click.wav')
+
 
 snakeHeadFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head.png')
 snakeBodyFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_straight.png')
