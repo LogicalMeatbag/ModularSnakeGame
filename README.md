@@ -2,7 +2,7 @@
 
 A classic implementation of the Snake game, built with Python and Pygame, featuring a clean, modular, and easily customizable code structure.
 
-![A player playing ANAHKEN's Modular Snake Game.](https://github.com/LogicalMeatbag/ModularSnakeGame/assets/173958133/0a8ca9b5-dd17-482f-8d38-268852190e6d)
+![A player playing ANAHKEN's Modular Snake Game.](https://github.com/user-attachments/assets/0a8ca9b5-dd17-482f-8d38-268852190e6d)
 
 ## Features
 
@@ -108,3 +108,4 @@ This project is set up to be easily bundled into a single executable using **PyI
 ## License
 
 This project is open source and available under the MIT License.
+
