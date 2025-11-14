@@ -8,7 +8,9 @@ main.py
 import sys
 import os
 import error_handler
+from settings import gameTitle # so we can print it before running the main.py code
 
+print(f'Starting {gameTitle}... (Python {sys.version_info.major}.{sys.version_info.minor})')
 # --- [NEW] Set up global exception handler ---
 # This will catch any error that isn't explicitly handled elsewhere
 # and display it in a user-friendly GUI window before the program
@@ -58,6 +60,7 @@ except ImportError:
 # Now we can safely import the rest of our game modules.
 
 import settings
+import random
 import settings_manager
 import ui
 from game_controller import GameController
@@ -70,6 +73,8 @@ class GameState(Enum):
     KEYBIND_SETTINGS = 5
     PAUSED = 6
     CUSTOM_COLOR_SETTINGS = 7
+    EVENT_COUNTDOWN = 8
+    DEBUG_SETTINGS = 9
     
 def update_dynamic_dimensions(window_surface):
     """
@@ -99,8 +104,25 @@ def update_dynamic_dimensions(window_surface):
 def main():
     # The game controller manages the actual game session
     game = GameController()
+
+    # --- [FIX] Define start_new_game inside main() to give it access to the correct scope ---
+    def start_new_game():
+        """Resets all game-specific state to start a fresh game."""
+        nonlocal active_event, event_timer, notification_end_time, countdown_seconds_left
+        
+        # Reset the core game controller (snake, food, score, speed)
+        game.reset()
+        
+        # Reset all event-related variables to their initial states
+        active_event = None
+        event_timer = 0
+        notification_end_time = 0
+        countdown_seconds_left = 0
+        
+        # Set the game state to playing
+        return GameState.PLAYING
     
-    # Start in the main menu
+    # --- Game State & Loop Variables ---
     current_state = GameState.MAIN_MENU
     running = True
 
@@ -113,6 +135,10 @@ def main():
     # Start with the saved custom color or the default snake color
     initial_custom_color = settings.userSettings.get("customColor", list(settings.snakeColor))
     temp_custom_color = list(initial_custom_color) # Work on a copy
+
+    # --- [NEW] State for debug settings menu ---
+    # Work on a temporary copy
+    temp_debug_settings = settings.debugSettings.copy()
 
     # --- [NEW] State for keybind menu ---
     # Work on a temporary copy of the keybinds
@@ -128,7 +154,19 @@ def main():
 
     editingColorComponent = None # 'R', 'G', 'B', or None
     rgbInputString = ""
+
+    # --- [NEW] State for random events ---
+    event_list = [
+        "Apples Galore", "Golden Apple Rain", "BEEEG Snake", 
+        "Small Snake", "Racecar Snake", "Slow Snake"
+    ]
+    active_event = None
+    event_start_time = 0
+    event_timer = 0 # Counts up to trigger a new event
+    notification_end_time = 0 # For showing the event name text
+    countdown_seconds_left = 0 # For showing the pre-event countdown
     
+    pause_start_time = 0 # To track duration of pause
     # --- [NEW] Initial dimension calculation ---
     update_dynamic_dimensions(settings.window)
 
@@ -159,14 +197,12 @@ def main():
             if current_state == GameState.MAIN_MENU:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RETURN:
-                        current_state = GameState.PLAYING
-                        game.reset()  # Start a new game
+                        current_state = start_new_game()
                     elif event.key == pygame.K_s: # 'S' for settings
                         current_state = GameState.COLOR_SETTINGS
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if menu_buttons['play'].collidepoint(mouse_pos):
-                        current_state = GameState.PLAYING
-                        game.reset()
+                        current_state = start_new_game()
                     elif menu_buttons['settings'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
                         current_state = GameState.COLOR_SETTINGS
@@ -218,6 +254,10 @@ def main():
                         current_state = GameState.KEYBIND_SETTINGS
                         # Reset rebinding state when entering the menu
                         selected_action_to_rebind = None
+                    elif settings_buttons['debug_toggle'].collidepoint(mouse_pos):
+                        settings.buttonClickSound.play()
+                        settings.debugMode = not settings.debugMode # Toggle the flag
+                        settings.userSettings["debugMode"] = settings.debugMode # Update for saving
                     elif settings_buttons['save'].collidepoint(mouse_pos):
                         # Save the current color selection and go back
                         settings.buttonClickSound.play()
@@ -230,6 +270,11 @@ def main():
                     if color_names[current_color_index] == "Custom" and settings_buttons['color_name_display'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
                         current_state = GameState.CUSTOM_COLOR_SETTINGS
+
+                    # --- [NEW] Check for debug settings button click ---
+                    if settings_buttons.get('debug_menu') and settings_buttons['debug_menu'].collidepoint(mouse_pos):
+                        settings.buttonClickSound.play()
+                        current_state = GameState.DEBUG_SETTINGS
 
             elif current_state == GameState.KEYBIND_SETTINGS:
                 if event.type == pygame.KEYDOWN:
@@ -325,41 +370,71 @@ def main():
                             # Discard changes and go back
                             temp_custom_color = list(settings.userSettings.get("customColor", list(settings.snakeColor)))
                             current_state = GameState.COLOR_SETTINGS
+
+            elif current_state == GameState.DEBUG_SETTINGS:
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    for button, rect in debug_settings_buttons.items():
+                        if rect.collidepoint(mouse_pos):
+                            settings.buttonClickSound.play()
+                            if button.startswith('show'):
+                                # Toggle visibility
+                                temp_debug_settings[button] = not temp_debug_settings[button]
+                            elif button.startswith('inc_'):
+                                key = button[4:]
+                                temp_debug_settings[key] += 1
+                            elif button.startswith('dec_'):
+                                key = button[4:]
+                                temp_debug_settings[key] = max(1, temp_debug_settings[key] - 1) # Prevent going below 1
+                            elif button == 'back':
+                                # Save changes and go back
+                                settings.debugSettings = temp_debug_settings.copy()
+                                settings.userSettings["debugSettings"] = settings.debugSettings
+                                settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+                                current_state = GameState.COLOR_SETTINGS
+                            break # Stop checking after a click
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    # Save and go back on escape as well
+                    settings.debugSettings = temp_debug_settings.copy()
+                    settings.userSettings["debugSettings"] = settings.debugSettings
+                    settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+                    current_state = GameState.COLOR_SETTINGS
             
             elif current_state == GameState.PLAYING:
                 # Pass game-related inputs to the controller
                 game.handle_input(event)
                 # --- [NEW] Pause the game ---
                 if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
+                    pause_start_time = pygame.time.get_ticks() # Record when pause starts
+                    current_state = GameState.PAUSED
+            
+            elif current_state == GameState.EVENT_COUNTDOWN:
+                # --- [FIX] Also handle player input during the event countdown ---
+                game.handle_input(event)
+                if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
+                    # It should also be possible to pause during the countdown
+                    pause_start_time = pygame.time.get_ticks()
                     current_state = GameState.PAUSED
             
             elif current_state == GameState.PAUSED:
                 if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
+                    # --- [NEW] Adjust event timers when unpausing ---
+                    # This prevents events from ending while paused.
+                    pause_duration = pygame.time.get_ticks() - pause_start_time
+                    if active_event:
+                        event_start_time += pause_duration
+                        notification_end_time += pause_duration
                     current_state = GameState.PLAYING
-            
-            elif current_state == GameState.PLAYING:
-                # Pass game-related inputs to the controller
-                game.handle_input(event)
-                # --- [TEMPLATE] FOR NEW GAME STATES ---
-                # if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-                #     current_state = GameState.PAUSED
-            
-            # elif current_state == GameState.PAUSED:
-            #     if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-            #         current_state = GameState.PLAYING
             
             elif current_state == GameState.GAME_OVER:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_q:
                         running = False
                     if event.key == pygame.K_r:
-                        current_state = GameState.PLAYING
-                        game.reset()  # Reset for a new game
+                        current_state = start_new_game()
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if game_over_buttons['restart'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
-                        current_state = GameState.PLAYING
-                        game.reset()
+                        current_state = start_new_game()
                     elif game_over_buttons['mainMenu'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
                         current_state = GameState.MAIN_MENU
@@ -383,6 +458,9 @@ def main():
         
         elif current_state == GameState.COLOR_SETTINGS:
             settings_buttons = ui.draw_settings_menu(settings.window, color_names[current_color_index]) # Returns dict of buttons
+
+        elif current_state == GameState.DEBUG_SETTINGS:
+            debug_settings_buttons = ui.draw_debug_settings_menu(settings.window, temp_debug_settings)
 
         elif current_state == GameState.KEYBIND_SETTINGS:
             keybind_buttons = ui.draw_keybind_settings_menu(settings.window, temp_keybinds, selected_action_to_rebind)
@@ -409,7 +487,7 @@ def main():
         elif current_state == GameState.PLAYING:
             # The game.update() method now handles all game logic
             # and returns True if the game is over.
-            is_game_over = game.update()
+            is_game_over = game.update(active_event)
             
             if is_game_over:
                 settings.gameOverSound.play()
@@ -419,15 +497,107 @@ def main():
                 # Draw all the game elements
                 game.draw(settings.window)
 
+            # --- [NEW] Handle event logic inside the PLAYING state ---
+            current_time = pygame.time.get_ticks()
+
+            # 1. Check if an active event has expired
+            if active_event and current_time > event_start_time + settings.EVENT_DURATION:
+                game.stop_event(active_event)
+                active_event = None
+
+            # 2. If no event is active, count up the main event timer.
+            if not active_event and current_state != GameState.EVENT_COUNTDOWN:
+                if event_timer < settings.EVENT_TIMER_MAX:
+                    event_timer += settings.clock.get_time() # Add milliseconds since last frame
+                else:
+                    # Timer is up. Roll the dice to see if we start a countdown.
+                    event_timer = 0 # Reset timer for the next cycle
+                    chance = settings.debugSettings['eventChanceOverride'] if settings.debugMode else settings.EVENT_CHANCE
+                    if random.randint(1, 100) <= chance:
+                        # Success! Start the pre-event countdown.
+                        current_state = GameState.EVENT_COUNTDOWN
+                        event_start_time = current_time # Use this to time the countdown
+
+            # 3. Handle drawing UI notifications
+            if current_time < notification_end_time:
+                if active_event: # Ensure there's an event to announce
+                    ui.draw_event_notification(settings.window, active_event)
+                    # --- [NEW] If it's a size event, show the revert countdown ---
+            
+            # --- [FIX] Draw revert countdown separately from the notification ---
+            # This ensures it lasts for the full event duration.
+            if active_event in ["BEEEG Snake", "Small Snake"]:
+                time_left = (event_start_time + settings.EVENT_DURATION - current_time) / 1000
+                if time_left > 0:
+                    ui.draw_revert_countdown(settings.window, int(time_left) + 1)
+
+        elif current_state == GameState.EVENT_COUNTDOWN:
+            # We are in the pre-event countdown.
+            # --- [FIX] Update the game state so it doesn't pause during the countdown. ---
+            is_game_over = game.update(active_event)
+            if is_game_over: # It's possible to die during the countdown
+                settings.gameOverSound.play()
+                game.save_score_if_high()
+                current_state = GameState.GAME_OVER
+            
+            game.draw(settings.window) # Keep drawing the game
+            time_since_start = pygame.time.get_ticks() - event_start_time
+            
+            if time_since_start >= settings.EVENT_COUNTDOWN_DURATION:
+                # Countdown finished! Trigger the actual event.
+                current_state = GameState.PLAYING
+                active_event = random.choice(event_list)
+                game.start_event(active_event)
+                event_start_time = pygame.time.get_ticks() # Reset timer for the event's duration
+                notification_end_time = event_start_time + settings.EVENT_NOTIFICATION_DURATION
+            else:
+                # Draw the countdown UI
+                seconds_left = (settings.EVENT_COUNTDOWN_DURATION - time_since_start) / 1000
+                ui.draw_event_countdown(settings.window, int(seconds_left) + 1)
+
         elif current_state == GameState.PAUSED:
             # First, draw the underlying game screen so it's visible.
             game.draw(settings.window)
             # Then, draw the pause menu over it.
-            ui.draw_pause_menu(settings.window)
+            # --- [FIX] The pause menu doesn't exist yet, so we'll just draw text ---
+            pause_font = pygame.font.SysFont(None, 80)
+            # --- [FIX] Adjust pause timers when unpausing ---
+            # This prevents events from ending while paused.
+            if active_event:
+                event_start_time += pygame.time.get_ticks() - pause_start_time
+            pause_surface = pause_font.render("PAUSED", True, settings.white)
+            pause_rect = pause_surface.get_rect(center=(settings.window.get_width() / 2, settings.window.get_height() / 2))
+            settings.window.blit(pause_surface, pause_rect)
 
         elif current_state == GameState.GAME_OVER:
             # Pass the final score and high score to the UI function
             game_over_buttons = ui.draw_game_over_screen(settings.window, game.score, game.high_score)
+
+        # --- [NEW] Draw Debug Overlay if enabled ---
+        if settings.debugMode:
+            event_time_left = 0
+            if active_event:
+                event_time_left = (event_start_time + settings.EVENT_DURATION - pygame.time.get_ticks()) / 1000
+
+            # --- [NEW] Build debug info based on visibility settings ---
+            all_debug_info = {
+                "State": (settings.debugSettings['showState'], current_state.name),
+                "Snake Pos": (settings.debugSettings['showSnakePos'], str(game.snake.pos)),
+                "Snake Len": (settings.debugSettings['showSnakeLen'], len(game.snake.body)),
+                "Speed": (settings.debugSettings['showSpeed'], f"{game.speed:.1f}"),
+                "Normal Speed": (settings.debugSettings['showNormalSpeed'], f"{game.normalSpeed:.1f}"),
+                "Event Timer": (settings.debugSettings['showEventTimer'], f"{(settings.EVENT_TIMER_MAX - event_timer) / 1000:.1f}s"),
+                "Active Event": (settings.debugSettings['showActiveEvent'], active_event),
+                "Event Time Left": (settings.debugSettings['showEventTimeLeft'], f"{event_time_left:.1f}s"),
+                "Size Event Active": (settings.debugSettings['showSizeEventActive'], game.snake.is_size_event_active),
+                "Pre-Event Len": (settings.debugSettings['showPreEventLen'], game.snake.pre_event_length),
+            }
+
+            visible_debug_info = {"High Score Saving": "DISABLED"}
+            for key, (is_visible, value) in all_debug_info.items():
+                if is_visible:
+                    visible_debug_info[key] = value
+            ui.draw_debug_overlay(settings.window, visible_debug_info)
 
         # --- Finalize Frame ---
         # This is the crucial step that makes everything drawn in the loop

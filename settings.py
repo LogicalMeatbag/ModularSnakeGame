@@ -9,7 +9,7 @@ import settings_manager
 # whether we are running as a .py script or a bundled .exe
 if getattr(sys, 'frozen', False):
     # Running as a bundled .exe
-    base_path = sys._MEIPASS # For assets inside the .exe
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))) # For assets inside the .exe
 else:
     # Running as a .py script
     base_path = os.path.dirname(os.path.abspath(__file__)) # For assets next to the .py
@@ -96,6 +96,21 @@ goldenFoodChance = 15 # Represents a 1 in 15 chance
 # speedFoodScore = 2 # 2. Define its score value.
 # speedFoodChance = 10 # 3. Define its spawn chance (e.g., 1 in 10).
 
+# --- [NEW] RANDOM EVENT SETTINGS ---
+EVENT_TIMER_MAX = 15 * 1000 # An event can trigger every 15 seconds (in milliseconds)
+EVENT_CHANCE = 25 # 25% chance to trigger an event when the timer is up
+EVENT_DURATION = 10 * 1000 # Most events last for 10 seconds
+EVENT_NOTIFICATION_DURATION = 3 * 1000 # "Apples Galore!" message shows for 3 seconds
+EVENT_COUNTDOWN_DURATION = 5 * 1000 # Start countdown 5 seconds before event can trigger
+
+# Event-specific values
+APPLES_GALORE_COUNT = 15
+GOLDEN_APPLE_RAIN_COUNT = 10
+BEEG_SNAKE_GROWTH = 10
+SMALL_SNAKE_SHRINK = 5
+RACECAR_SNAKE_SPEED_BOOST = 15
+SLOW_SNAKE_SPEED_REDUCTION = 5
+
 # --- [TEMPLATE] FOR NEW ENTITY COLORS ---
 # obstacleColor = (128, 128, 128)
 
@@ -108,6 +123,22 @@ defaultSettings = {
         'DOWN': [pygame.K_DOWN, pygame.K_s],
         'LEFT': [pygame.K_LEFT, pygame.K_a],
         'RIGHT': [pygame.K_RIGHT, pygame.K_d],
+    },
+    "debugMode": False,
+    # --- [NEW] Default settings for the debug menu ---
+    "debugSettings": {
+        "showState": True,
+        "showSnakePos": True,
+        "showSnakeLen": True,
+        "showSpeed": True,
+        "showNormalSpeed": True,
+        "showEventTimer": True,
+        "showActiveEvent": True,
+        "showEventTimeLeft": True,
+        "showSizeEventActive": True,
+        "showPreEventLen": True,
+        "eventChanceOverride": 25,
+        "goldenAppleChanceOverride": 15
     }
 }
 
@@ -124,12 +155,14 @@ savedColorName = userSettings.get("snakeColorName", defaultSettings["snakeColorN
 if savedColorName == "Custom":
     # If the saved name is "Custom", load the specific RGB value.
     # Fallback to Green if the customColor value is somehow missing.
-    snakeColor = tuple(userSettings.get("customColor", defaultSettings["snakeColorName"]))
+    snakeColor = tuple(userSettings.get("customColor", colorOptions["Green"]))
 else:
     # Otherwise, load the color from the presets dictionary.
     snakeColor = colorOptions.get(savedColorName, colorOptions["Green"])
 
 keybinds = userSettings.get("keybinds", defaultSettings["keybinds"])
+debugMode = userSettings.get("debugMode", defaultSettings["debugMode"])
+debugSettings = userSettings.get("debugSettings", defaultSettings["debugSettings"])
 
 
 # --- FILE PATHS ---
@@ -205,6 +238,7 @@ try:
     scoreFont = pygame.font.SysFont(None, 35)
     titleFont = pygame.font.SysFont(None, 60)
     smallFont = pygame.font.SysFont(None, 30)
+    debugFont = pygame.font.SysFont("monospace", 15)
 except Exception as e:
     errorMessage = (
         f"A system font could not be loaded.\n\nDetails: {e}\n\n"
@@ -214,6 +248,7 @@ except Exception as e:
     scoreFont = pygame.font.Font(None, 35)
     titleFont = pygame.font.Font(None, 60)
     smallFont = pygame.font.Font(None, 30)
+    debugFont = pygame.font.Font(None, 18)
 
 if __name__ == "__main__":
     import os
@@ -230,9 +265,3 @@ if __name__ == "__main__":
     
     # Run main.py using the same python interpreter, with the correct working directory
     subprocess.Popen([sys.executable, main_py_path], cwd=script_dir)
-
-# --- [NEW] DYNAMIC FONT SIZES ---
-# Store the base sizes to be used for scaling
-baseScoreFontSize = 35
-baseTitleFontSize = 60
-baseSmallFontSize = 30

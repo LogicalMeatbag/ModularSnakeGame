@@ -14,6 +14,9 @@ class Snake:
         # --- [NEW] For efficient sprite scaling ---
         self.scaled_images = {}
         self.last_block_size = -1 # Force a rescale on the first draw
+        # --- [NEW] For temporary size change events ---
+        self.pre_event_length = 0
+        self.is_size_event_active = False
 
 
     def reset(self):
@@ -28,6 +31,9 @@ class Snake:
         segment2_x = start_x - 1 # One block to the left
         
         self.body = [[start_x, start_y], [segment2_x, start_y]]
+        # Reset event state
+        self.pre_event_length = 0
+        self.is_size_event_active = False
 
     def change_direction(self, event_key):
         """Updates the snake's target direction based on key presses."""
@@ -60,7 +66,36 @@ class Snake:
     def grow(self):
         """Grows the snake by not removing the tail segment. This is called when food is eaten."""
         # In our new logic, we simply do nothing here, as the head has already been added.
+        # If a size event is active, we need to update the target length
+        if self.is_size_event_active:
+            self.pre_event_length += 1
         pass
+
+    def grow_by(self, amount):
+        """Instantly grows the snake by a given amount for the 'BEEEG Snake' event."""
+        if not self.body: return
+        tail_segment = self.body[-1]
+        for _ in range(amount):
+            self.body.append(list(tail_segment)) # Add copies of the tail segment
+
+    def shrink_by(self, amount):
+        """
+        Instantly shrinks the snake for the 'Small Snake' event, but not
+        to a length less than 2.
+        """
+        min_length = 2
+        current_length = len(self.body)
+        
+        # Calculate how many segments can be safely removed
+        removable_segments = current_length - min_length
+        segments_to_remove = min(amount, removable_segments)
+        self.body = self.body[:-segments_to_remove]
+
+    def revert_size(self):
+        """Reverts the snake's size to its pre-event length."""
+        current_length = len(self.body)
+        if current_length > self.pre_event_length:
+            self.body = self.body[:self.pre_event_length]
     
     def move(self):
         """Moves the snake by removing the tail segment (when no food is eaten)."""
@@ -214,6 +249,12 @@ class Food:
         self.items.clear()
         self._spawn_item('normal', snake_body)
 
+    def spawn_galore(self, food_type, count, snake_body):
+        """Spawns a large number of a specific food type for an event."""
+        self.items.clear() # Clear existing food
+        for _ in range(count):
+            self._spawn_item(food_type, snake_body)
+
     def _spawn_item(self, food_type, snake_body):
         """
         Internal helper to spawn a single food item of a given type.
@@ -237,12 +278,17 @@ class Food:
                 #     self.items.append({'pos': pos, 'type': 'speed', 'color': settings.blue})
                 break
 
-    def spawn_new_food(self, snake_body):
+    def spawn_new_food(self, snake_body, golden_chance):
         """Public method called after food is eaten. Spawns a new normal food
         and has a chance to spawn a golden one."""
+        # --- [FIX] When spawning a new normal apple, first remove any other existing normal apples. ---
+        # This prevents normal apples from accumulating after a golden one is eaten.
+        self.items = [item for item in self.items if item['type'] != 'normal']
+
+        # Now, spawn a single new normal apple.
         self._spawn_item('normal', snake_body)
         
-        if random.randint(1, settings.goldenFoodChance) == 1:
+        if random.randint(1, golden_chance) == 1:
             self._spawn_item('golden', snake_body)
         
         # --- [TEMPLATE] FOR NEW FOOD ---

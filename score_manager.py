@@ -5,6 +5,7 @@ score_manager.py
 - NEW: Encodes/decodes the score using Base64 to obfuscate it.
 """
 import os
+import settings
 import base64
 import error_handler
 import binascii  # For error handling
@@ -57,6 +58,10 @@ def save_high_score(filepath, new_high_score):
     Saves the new high score to the specified file.
     NEW: Encodes to Base64 and writes as binary.
     """
+    if settings.debugMode:
+        print("Debug Mode is active. High score saving is disabled.")
+        return # Do not save high scores in debug mode
+
     try:
         # Convert score to string, encode to utf-8 bytes
         str_score_bytes = str(new_high_score).encode('utf-8')

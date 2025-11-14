@@ -20,6 +20,8 @@ class GameController:
         # --- [TEMPLATE] FOR NEW ENTITIES ---
         # self.obstacles = Obstacle() 
         self.score = 0
+        # --- [NEW] Separate speed from normal speed for events ---
+        self.normalSpeed = settings.startSpeed
         self.speed = settings.startSpeed
         self.high_score = score_manager.load_high_score(settings.highScoreFile)
         
@@ -30,7 +32,8 @@ class GameController:
         # --- [TEMPLATE] FOR NEW ENTITIES ---
         # self.obstacles.reset()
         self.score = 0
-        self.speed = settings.startSpeed
+        self.normalSpeed = settings.startSpeed
+        self.speed = self.normalSpeed
         # High score persists, so we reload it
         self.high_score = score_manager.load_high_score(settings.highScoreFile)
 
@@ -39,7 +42,7 @@ class GameController:
         if event.type == pygame.KEYDOWN:
             self.snake.change_direction(event.key)
 
-    def update(self):
+    def update(self, active_event=None):
         """
         Updates the game state by one frame.
         Moves snake, checks for collisions, etc.
@@ -57,7 +60,7 @@ class GameController:
             # Apply effects based on food type
             if eaten_food['type'] == 'normal':
                 self.score += 1
-                self.speed += 1
+                self.normalSpeed += 1 # Increase the base speed
             elif eaten_food['type'] == 'golden':
                 self.score += settings.goldenFoodScore
             # --- [TEMPLATE] FOR NEW FOOD ---
@@ -66,8 +69,16 @@ class GameController:
             #     self.score += settings.speedFoodScore
             #     self.speed += 5 # e.g., temporary speed boost
             
-            self.food.spawn_new_food(self.snake.get_body())
+            # --- [FIX] Only spawn new food if a food event is not active ---
+            if not self.is_food_event_active(active_event):
+                # --- [NEW] Use debug override if active ---
+                chance = settings.debugSettings['goldenAppleChanceOverride'] if settings.debugMode else settings.goldenFoodChance
+                self.food.spawn_new_food(self.snake.get_body(), chance)
         else:
+            # --- [NEW] Only adjust speed if no event is active ---
+            # This prevents speed from resetting mid-event
+            if not self.is_speed_event_active():
+                self.speed = self.normalSpeed
             self.snake.move() # No food, so just move
 
         # Check for game-over collisions
@@ -78,7 +89,7 @@ class GameController:
         # for obstacle in self.obstacles.items:
         #     if self.snake.get_head_pos() == obstacle['pos']:
         #         settings.obstacleHitSound.play()
-            return True  # Game is over
+        #     return True  # Game is over
 
         return False # Game continues
         
@@ -87,6 +98,51 @@ class GameController:
         if self.score > self.high_score:
             self.high_score = self.score
             score_manager.save_high_score(settings.highScoreFile, self.high_score)
+
+    def start_event(self, event_name):
+        """Applies the effects of a random event."""
+        if event_name == "Apples Galore":
+            self.food.spawn_galore('normal', settings.APPLES_GALORE_COUNT, self.snake.get_body())
+        elif event_name == "Golden Apple Rain":
+            self.food.spawn_galore('golden', settings.GOLDEN_APPLE_RAIN_COUNT, self.snake.get_body())
+        elif event_name == "BEEEG Snake":
+            self.snake.is_size_event_active = True
+            self.snake.pre_event_length = len(self.snake.get_body())
+            self.snake.grow_by(settings.BEEG_SNAKE_GROWTH)
+        elif event_name == "Small Snake":
+            self.snake.is_size_event_active = True
+            self.snake.pre_event_length = len(self.snake.get_body())
+            self.snake.shrink_by(settings.SMALL_SNAKE_SHRINK)
+        elif event_name == "Racecar Snake":
+            self.speed = self.normalSpeed + settings.RACECAR_SNAKE_SPEED_BOOST
+        elif event_name == "Slow Snake":
+            self.speed = max(5, self.normalSpeed - settings.SLOW_SNAKE_SPEED_REDUCTION)
+
+    def stop_event(self, event_name):
+        """Resets the effects of a timed event."""
+        # Handle different event types
+        if event_name in ["Racecar Snake", "Slow Snake"]:
+            self.speed = self.normalSpeed
+        elif event_name in ["BEEEG Snake", "Small Snake"]:
+            self.snake.revert_size()
+            self.snake.is_size_event_active = False
+            self.snake.pre_event_length = 0
+        # For food events, clear all food and spawn one new normal apple.
+        elif event_name in ["Apples Galore", "Golden Apple Rain"]:
+            self.food.reset(self.snake.get_body())
+
+    def is_food_event_active(self, active_event):
+        """Helper to check if a food-spawning event is active."""
+        if not active_event: return False
+        return active_event in ["Apples Galore", "Golden Apple Rain"]
+
+    def is_speed_event_active(self):
+        """
+        Helper to check if a speed-modifying event is active.
+        This is a bit of a hack; a more robust system would use an event state object.
+        For now, we can infer it by comparing current speed to normal speed.
+        """
+        return self.speed != self.normalSpeed
             
     def draw(self, surface):
         """Draws all active game elements."""

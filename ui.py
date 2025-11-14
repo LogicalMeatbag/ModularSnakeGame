@@ -120,6 +120,17 @@ def draw_settings_menu(surface, current_color_name):
     right_arrow_surf = settings.scoreFont.render(">", True, right_arrow_color)
     surface.blit(right_arrow_surf, right_arrow_surf.get_rect(center=right_arrow_rect.center))
 
+    # --- [NEW] Debug Settings Button (only shows if debug mode is on) ---
+    if settings.debugMode:
+        debugMenuText = "Debug Settings"
+        debugMenuSurface = settings.smallFont.render(debugMenuText, True, settings.white)
+        debug_menu_rect = pygame.Rect(0, 0, debugMenuSurface.get_width() + 20, 40)
+        debug_menu_rect.center = (win_w / 2, win_h * 0.6)
+        debugMenuColor = settings.white if debug_menu_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        pygame.draw.rect(surface, debugMenuColor, debug_menu_rect, 2, 5)
+        debugMenuSurface = settings.smallFont.render(debugMenuText, True, debugMenuColor)
+        surface.blit(debugMenuSurface, debugMenuSurface.get_rect(center=debug_menu_rect.center))
+
     # Keybinds Button
     # --- [FIX] Dynamically size the button based on the text width ---
     keybindsText = "Configure Controls"
@@ -131,11 +142,31 @@ def draw_settings_menu(surface, current_color_name):
     keybindsSurface = settings.scoreFont.render(keybindsText, True, keybindsColor) # Re-render with hover color
     surface.blit(keybindsSurface, keybindsSurface.get_rect(center=keybinds_rect.center))
 
+    # --- [NEW] Debug Mode Toggle ---
+    debug_toggle_y = win_h * 0.78
+    debug_label_surface = settings.scoreFont.render("Debug Mode:", True, settings.white)
+    debug_label_rect = debug_label_surface.get_rect(midright=(win_w / 2, debug_toggle_y))
+    surface.blit(debug_label_surface, debug_label_rect)
+
+    debug_box_rect = pygame.Rect(0, 0, 30, 30)
+    debug_box_rect.midleft = (win_w / 2 + 10, debug_toggle_y)
+    debug_box_color = settings.white if debug_box_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    pygame.draw.rect(surface, debug_box_color, debug_box_rect, 2, 3)
+
+    if settings.debugMode:
+        # Draw a checkmark if debug mode is enabled
+        checkmark_points = [
+            (debug_box_rect.left + 5, debug_box_rect.centery),
+            (debug_box_rect.centerx - 2, debug_box_rect.bottom - 5),
+            (debug_box_rect.right - 5, debug_box_rect.top + 5)
+        ]
+        pygame.draw.lines(surface, settings.snakeColor, False, checkmark_points, 3)
+
     # Save Button
     saveText = "Back to Menu"
     saveSurface = settings.scoreFont.render(saveText, True, settings.white)
     save_rect = pygame.Rect(0, 0, saveSurface.get_width() + 40, 50)
-    save_rect.center = (win_w / 2, win_h * 0.85)
+    save_rect.center = (win_w / 2, win_h * 0.88) # Moved down slightly
     saveColor = settings.white if save_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, saveColor, save_rect, 2, 5)
     saveSurface = settings.scoreFont.render(saveText, True, saveColor) # Re-render with hover color
@@ -149,7 +180,15 @@ def draw_settings_menu(surface, current_color_name):
     color_name_rect = color_name_surface.get_rect(center=(win_w / 2, text_y_pos))
     surface.blit(color_name_surface, color_name_rect)
 
-    return {'left': left_arrow_rect, 'right': right_arrow_rect, 'keybinds': keybinds_rect, 'save': save_rect, 'color_name_display': color_name_rect}
+    return {
+        'left': left_arrow_rect, 
+        'right': right_arrow_rect, 
+        'keybinds': keybinds_rect, 
+        'save': save_rect, 
+        'color_name_display': color_name_rect,
+        'debug_toggle': debug_box_rect,
+        'debug_menu': debug_menu_rect if settings.debugMode else None
+    }
 
 def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
     """Draws the keybinding configuration screen."""
@@ -319,6 +358,138 @@ def draw_game_over_screen(surface, score, high_score):
     surface.blit(mainMenuSurface, mainMenuSurface.get_rect(center=mainMenuRect.center))
 
     return {'restart': restart_rect, 'mainMenu': mainMenuRect}
+
+def draw_event_notification(surface, event_name):
+    """Draws a large notification for a random event."""
+    win_w, win_h = surface.get_size()
+    
+    # Use a slightly smaller font than the main title for the event name
+    event_font = pygame.font.SysFont(None, 50)
+    event_surface = event_font.render(f"{event_name}!", True, settings.gold)
+    event_rect = event_surface.get_rect(center=(win_w / 2, win_h * 0.2))
+    surface.blit(event_surface, event_rect)
+
+def draw_event_countdown(surface, seconds_left):
+    """Draws a countdown notification before a random event triggers."""
+    win_w, win_h = surface.get_size()
+    
+    # Use a smaller font for the countdown to differentiate it from the event name
+    countdown_font = pygame.font.SysFont(None, 40)
+    countdown_text = f"Event happening in {seconds_left}..."
+    countdown_surface = countdown_font.render(countdown_text, True, settings.white)
+    countdown_rect = countdown_surface.get_rect(center=(win_w / 2, win_h * 0.2))
+    surface.blit(countdown_surface, countdown_rect)
+
+def draw_revert_countdown(surface, seconds_left):
+    """Draws a countdown for when a temporary effect will revert."""
+    win_w, win_h = surface.get_size()
+    
+    # Use the same smaller font as the event countdown
+    revert_font = pygame.font.SysFont(None, 40)
+    revert_text = f"You will be reverted back in {seconds_left}..."
+    revert_surface = revert_font.render(revert_text, True, settings.white)
+    revert_rect = revert_surface.get_rect(center=(win_w / 2, win_h * 0.25)) # Slightly lower
+    surface.blit(revert_surface, revert_rect)
+
+def draw_debug_overlay(surface, debug_info):
+    """Draws a debug overlay with game state information."""
+    x_pos = 10
+    y_pos = 10
+    
+    # Create a semi-transparent background for readability
+    max_width = 0
+    for key, value in debug_info.items():
+        text = f"{key}: {value}"
+        max_width = max(max_width, settings.debugFont.size(text)[0])
+    
+    bg_height = len(debug_info) * 20 + 10
+    bg_rect = pygame.Rect(x_pos - 5, y_pos - 5, max_width + 10, bg_height)
+    bg_surface = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
+    bg_surface.fill((0, 0, 0, 150))
+    surface.blit(bg_surface, (bg_rect.x, bg_rect.y))
+
+    # Draw the "Debug Mode" title
+    title_surf = settings.debugFont.render("--- DEBUG MODE ---", True, settings.gold)
+    surface.blit(title_surf, (x_pos, y_pos))
+    y_pos += 20
+
+    for key, value in debug_info.items():
+        text_surface = settings.debugFont.render(f"{key}: {value}", True, settings.white)
+        surface.blit(text_surface, (x_pos, y_pos))
+        y_pos += 20
+
+def draw_debug_settings_menu(surface, temp_debug_settings):
+    """Draws the menu for configuring debug variables."""
+    win_w, win_h = surface.get_size()
+    mouse_pos = pygame.mouse.get_pos()
+    buttons = {}
+    y_pos = win_h * 0.1
+
+    # Title
+    title_surface = settings.titleFont.render("Debug Settings", True, settings.gold)
+    surface.blit(title_surface, title_surface.get_rect(center=(win_w / 2, y_pos)))
+    y_pos += 80
+
+    # --- Visibility Toggles ---
+    vis_title_surf = settings.scoreFont.render("Overlay Visibility", True, settings.white)
+    surface.blit(vis_title_surf, vis_title_surf.get_rect(center=(win_w / 4, y_pos)))
+
+    # --- Value Overrides ---
+    val_title_surf = settings.scoreFont.render("Value Overrides", True, settings.white)
+    surface.blit(val_title_surf, val_title_surf.get_rect(center=(win_w * 0.75, y_pos)))
+    y_pos += 50
+
+    # Draw visibility toggles on the left
+    vis_y = y_pos
+    for key in [k for k in temp_debug_settings.keys() if k.startswith('show')]:
+        label_surf = settings.smallFont.render(key[4:] + ":", True, settings.white) # "showState" -> "State:"
+        surface.blit(label_surf, label_surf.get_rect(midright=(win_w / 4 - 10, vis_y)))
+
+        box_rect = pygame.Rect(0, 0, 25, 25)
+        box_rect.midleft = (win_w / 4, vis_y)
+        buttons[key] = box_rect
+
+        box_color = settings.white if box_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        pygame.draw.rect(surface, box_color, box_rect, 2, 3)
+        if temp_debug_settings[key]:
+            pygame.draw.line(surface, settings.snakeColor, (box_rect.left + 5, box_rect.top + 5), (box_rect.right - 5, box_rect.bottom - 5), 3)
+            pygame.draw.line(surface, settings.snakeColor, (box_rect.left + 5, box_rect.bottom - 5), (box_rect.right - 5, box_rect.top + 5), 3)
+        vis_y += 35
+
+    # Draw value editors on the right
+    val_y = y_pos
+    for key in ['eventChanceOverride', 'goldenAppleChanceOverride']:
+        label_text = key.replace('Override', '')
+        label_surf = settings.smallFont.render(label_text + ":", True, settings.white)
+        surface.blit(label_surf, label_surf.get_rect(midright=(win_w * 0.75 - 80, val_y)))
+
+        # Decrement button
+        dec_rect = pygame.Rect(0, 0, 40, 40)
+        dec_rect.center = (win_w * 0.75 - 40, val_y)
+        buttons[f'dec_{key}'] = dec_rect
+        pygame.draw.rect(surface, settings.uiElementColor, dec_rect, 2, 5)
+        surface.blit(settings.scoreFont.render("-", True, settings.white), settings.scoreFont.render("-", True, settings.white).get_rect(center=dec_rect.center))
+
+        # Value display
+        val_surf = settings.scoreFont.render(str(temp_debug_settings[key]), True, settings.white)
+        surface.blit(val_surf, val_surf.get_rect(center=(win_w * 0.75 + 20, val_y)))
+
+        # Increment button
+        inc_rect = pygame.Rect(0, 0, 40, 40)
+        inc_rect.center = (win_w * 0.75 + 80, val_y)
+        buttons[f'inc_{key}'] = inc_rect
+        pygame.draw.rect(surface, settings.uiElementColor, inc_rect, 2, 5)
+        surface.blit(settings.scoreFont.render("+", True, settings.white), settings.scoreFont.render("+", True, settings.white).get_rect(center=inc_rect.center))
+        val_y += 60
+
+    # Back Button
+    back_rect = pygame.Rect(0, 0, 200, 50)
+    back_rect.center = (win_w / 2, win_h * 0.9)
+    buttons['back'] = back_rect
+    pygame.draw.rect(surface, settings.white if back_rect.collidepoint(mouse_pos) else settings.uiElementColor, back_rect, 2, 5)
+    surface.blit(settings.scoreFont.render("Back", True, settings.white), settings.scoreFont.render("Back", True, settings.white).get_rect(center=back_rect.center))
+
+    return buttons
 
 if __name__ == "__main__":
     import os
