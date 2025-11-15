@@ -10,6 +10,7 @@ game_controller.py
 import pygame
 import settings
 import score_manager
+import ui
 from game_entities import Snake, Food
 
 class GameController:
@@ -162,10 +163,7 @@ class GameController:
         self.food.draw(surface)
         # self.obstacles.draw(surface) # Example for new entities
         # We draw the score here because it's part of the 'playing' screen
-        ui.draw_score(surface, self.score, self.high_score)
-
-# Need to import ui after the class is defined to avoid circular import
-import ui
+        ui.draw_score(surface, self.score, self.high_score) # This function is now available
 
 if __name__ == "__main__":
     import os

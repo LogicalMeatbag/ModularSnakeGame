@@ -273,12 +273,12 @@ def main():
                         # Keybinds are saved in their own menu, so we only need to save color settings here.
                         settings_manager.save_settings(settings.settingsFile, settings.userSettings)
                         current_state = GameState.MAIN_MENU
-                    
-                    if color_names[current_color_index] == "Custom" and settings_buttons['color_name_display'].collidepoint(mouse_pos):
+
+                    if color_names[current_color_index] == "Custom" and settings_buttons.get('colorNameDisplay') and settings_buttons['colorNameDisplay'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
                         current_state = GameState.CUSTOM_COLOR_SETTINGS
 
-                    if settings_buttons.get('debug_menu') and settings_buttons['debug_menu'].collidepoint(mouse_pos):
+                    if settings.debugMode and settings_buttons.get('debug_menu') and settings_buttons['debug_menu'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
                         current_state = GameState.DEBUG_SETTINGS
 

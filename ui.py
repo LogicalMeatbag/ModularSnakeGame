@@ -134,6 +134,7 @@ def draw_settings_menu(surface, current_color_name):
     surface.blit(right_arrow_surf, right_arrow_surf.get_rect(center=right_arrow_rect.center))
 
     # Debug Settings Button (only shows if debug mode is on)
+    debug_menu_rect = pygame.Rect(0, 0, 0, 0) # Initialize with a default empty rect
     if settings.debugMode:
         debugMenuText = "Debug Settings"
         debugMenuSurface = settings.smallFont.render(debugMenuText, True, settings.white)
