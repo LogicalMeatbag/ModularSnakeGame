@@ -60,7 +60,6 @@ import settings_manager
 import ui
 from game_controller import GameController
 import base64
-import pickle
 
 class GameState(Enum):
     MAIN_MENU = 1
@@ -106,6 +105,11 @@ def update_snake_color_from_name(selected_color_name):
     if selected_color_name == "Custom":
         # Use the saved custom color, or default to Green if none is saved
         settings.snakeColor = tuple(settings.userSettings.get("customColor", settings.colorOptions["Green"]))
+    elif selected_color_name == "Rainbow":
+        # For "Rainbow", we don't need to set a static color. The drawing logic
+        # in game_entities.py handles this case dynamically. We can set a
+        # placeholder color, but the important part is preventing the KeyError.
+        settings.snakeColor = (0, 0, 0) # This color won't be used.
     else:
         settings.snakeColor = settings.colorOptions[selected_color_name]
 
@@ -132,22 +136,49 @@ def handle_game_update(time_since_last_move, delta_time, game_instance, active_e
 
 def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func, sequence):
     """Handles events for the MAIN_MENU state."""
-    # This is an obfuscated version of the Konami Code sequence.
-    # It's stored as a Base64 encoded string to hide its purpose.
-    encoded_sequence = b'gASVFAAAAAAAAABdlCiMCgFVUAAAAAAAAIylg5Qu'
-    secret_code = pickle.loads(base64.b64decode(encoded_sequence))
+    # This string is a Base64-encoded representation of the secret code.
+    # It uses a custom format: steps are separated by ';', and alternate keys
+    # for a step are separated by '|'. This is robust and supports keybinds.
+    # Sequence: UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT, B, A
+    # NOTE: This string should be replaced with the one you manually encode.
+    encoded_sequence = b'S19VUHxLX3c7S19VUHxLX3c7S19ET1dOfEtfcztLX0RPV058S19zO0tfTEVGVHxLX2E7S19SSUdIVHxLX2Q7S19MRUZUfEtfYTtLX1JJR0hUfEtfZDtLX2I7S19hCg=='
+
+    # Decode the string and parse it into a list of lists of key codes.
+    decoded_bytes = base64.b64decode(encoded_sequence)
+    key_string = decoded_bytes.decode('utf-8')
+    secret_code_steps = []
+    for step_str in key_string.split(';'):
+        # Use getattr to convert the string name (e.g., "K_UP") into the actual pygame constant.
+        key_names = step_str.split('|')
+        # Use .strip() on each name to remove any accidental whitespace or newlines.
+        # This makes the parsing much more robust.
+        keys_for_step = [getattr(pygame, name.strip()) for name in key_names]
+        secret_code_steps.append(keys_for_step)
 
     if event.type == pygame.KEYDOWN:
         # --- Secret Code Logic ---
+        # Keep track of the last N key presses, where N is the length of the code.
         sequence.append(event.key)
-        if len(sequence) > len(secret_code):
-            sequence.pop(0) # Keep the list at the correct size
+        if len(sequence) > len(secret_code_steps):
+            sequence.pop(0)
 
-        if sequence == secret_code and not settings.rainbowModeUnlocked:
-            settings.rainbowModeUnlocked = True
-            settings.userSettings["rainbowModeUnlocked"] = True # Save the unlock
-            settings_manager.save_settings(settings.settingsFile, settings.userSettings)
-            settings.eatSound.play() # Play a confirmation sound
+        # If the sequence is the correct length, check it for a match.
+        if len(sequence) == len(secret_code_steps):
+            is_match = True
+            # Iterate through the user's sequence and the valid steps.
+            for i in range(len(secret_code_steps)):
+                user_key = sequence[i]
+                valid_keys_for_step = secret_code_steps[i]
+                if user_key not in valid_keys_for_step:
+                    is_match = False
+                    break # Mismatch found, no need to check further.
+            
+            if is_match and not settings.rainbowModeUnlocked:
+            # --- SUCCESS ---
+                settings.rainbowModeUnlocked = True
+                settings.userSettings["rainbowModeUnlocked"] = True # Save the unlock
+                settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+                settings.eatSound.play() # Play a confirmation sound
 
         if event.key == pygame.K_RETURN:
             return start_new_game_func()
@@ -347,6 +378,9 @@ def main():
     code_sequence = []
 
     color_names = list(settings.colorOptions.keys()) + ["Custom"]
+    if settings.rainbowModeUnlocked:
+        color_names.append("Rainbow")
+        
     current_color_index = color_names.index(settings.userSettings.get("snakeColorName", settings.defaultSettings["snakeColorName"]))
 
     # Start with the saved custom color or the default snake color
@@ -386,6 +420,16 @@ def main():
 
     pause_start_time = 0 # To track duration of pause
     update_dynamic_dimensions(settings.window)
+
+    # --- UI Button State ---
+    # Initialize all button dictionaries to empty dicts before the loop.
+    # This prevents an UnboundLocalError on the first frame.
+    menu_buttons = {}
+    settings_buttons = {}
+    keybind_buttons = {}
+    custom_color_buttons = {}
+    debug_settings_buttons = {}
+    game_over_buttons = {}
 
     while running:
         # --- Event Handler ---
@@ -487,10 +531,21 @@ def main():
         )
         pygame.draw.rect(settings.window, settings.backgroundColor, game_area_rect)
 
+        # Rebuild the list of color names every frame to immediately reflect unlocks.
+        color_names = list(settings.colorOptions.keys()) + ["Custom"]
+        if settings.rainbowModeUnlocked:
+            color_names.append("Rainbow")
+
+        # --- Handle Dynamic Colors ---
+        # If Rainbow is selected, we need to update the global snakeColor on every
+        # frame to create the cycling effect for all UI elements.
+        if color_names[current_color_index] == "Rainbow":
+            hue = (pygame.time.get_ticks() / 20) % 360
+            rainbow_color = pygame.Color(0)
+            rainbow_color.hsva = (hue, 100, 100, 100)
+            settings.snakeColor = rainbow_color
+
         if current_state == GameState.MAIN_MENU:
-            color_names = list(settings.colorOptions.keys()) + ["Custom"]
-            if settings.rainbowModeUnlocked:
-                color_names.append("Rainbow")
             menu_buttons = ui.draw_main_menu(settings.window)
         
         elif current_state == GameState.COLOR_SETTINGS:

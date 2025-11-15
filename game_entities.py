@@ -234,8 +234,10 @@ class Snake:
             # Color the final image and draw it
             # --- [EASTER EGG] Rainbow Snake Logic ---
             if settings.userSettings.get("snakeColorName") == "Rainbow":
-                # Calculate a hue that shifts over time and with each segment
-                hue = (pygame.time.get_ticks() / 20 + index * 15) % 360
+                # Calculate a hue that shifts over time. By removing the 'index'
+                # from this calculation, we ensure the entire snake is a single,
+                # solid color that cycles through the spectrum.
+                hue = (pygame.time.get_ticks() / 20) % 360
                 # Create a color object and set its hue
                 rainbow_color = pygame.Color(0) # Start with black
                 rainbow_color.hsva = (hue, 100, 100, 100) # Set Hue, Saturation, Value, Alpha
