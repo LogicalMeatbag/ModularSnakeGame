@@ -195,9 +195,9 @@ def draw_settings_menu(surface, current_color_name):
         'right': right_arrow_rect, 
         'keybinds': keybinds_rect, 
         'save': save_rect, 
-        'color_name_display': color_name_rect,
+        'colorNameDisplay': color_name_rect, # This key is used in main.py
         'debug_toggle': debug_box_rect,
-        'debug_menu': debug_menu_rect if settings.debugMode else None
+        'debug_menu': debug_menu_rect # Now safe to return directly
     }
 
 def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
