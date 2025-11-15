@@ -683,9 +683,7 @@ def main():
             if active_event:
                 event_time_left = (event_start_time + settings.EVENT_DURATION - pygame.time.get_ticks()) / 1000
 
-            fps = settings.clock.get_fps()
             all_debug_info = {
-                "FPS": (settings.showFps, f"{fps:.1f}"),
                 "State": (settings.debugSettings['showState'], current_state.name),
                 "Snake Pos": (settings.debugSettings['showSnakePos'], str(game.snake.pos)),
                 "Snake Len": (settings.debugSettings['showSnakeLen'], len(game.snake.body)),
@@ -704,6 +702,11 @@ def main():
                 if is_visible:
                     visible_debug_info[key] = value
             ui.draw_debug_overlay(settings.window, visible_debug_info)
+
+        # The FPS counter is now completely independent of the debug overlay.
+        # It is drawn after all other UI so it appears on top.
+        if settings.showFps:
+            ui.draw_fps_counter(settings.window, settings.clock.get_fps())
 
         # --- Finalize Frame ---
         # This is the crucial step that makes everything drawn in the loop

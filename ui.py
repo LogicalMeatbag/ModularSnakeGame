@@ -419,6 +419,16 @@ def draw_revert_countdown(surface, seconds_left):
     revert_rect = revert_surface.get_rect(center=(win_w / 2, win_h * 0.25)) # Slightly lower
     surface.blit(revert_surface, revert_rect)
 
+def draw_fps_counter(surface, fps):
+    """Draws a simple FPS counter in the top-right corner."""
+    # Format the FPS to one decimal place
+    fps_text = f"FPS: {fps:.1f}"
+    fps_surface = settings.debugFont.render(fps_text, True, settings.white)
+    
+    # Position in the top-right corner with a small margin
+    fps_rect = fps_surface.get_rect(topright=(surface.get_width() - 10, 10))
+    surface.blit(fps_surface, fps_rect)
+
 def draw_debug_overlay(surface, debug_info):
     """Draws a debug overlay with game state information."""
     x_pos = 10
