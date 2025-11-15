@@ -120,6 +120,7 @@ defaultSettings = {
         'RIGHT': [pygame.K_RIGHT, pygame.K_d],
     },
     "debugMode": False,
+    "rainbowModeUnlocked": False, # Easter Egg
     "debugSettings": {
         "showState": True,
         "showSnakePos": True,
@@ -155,6 +156,7 @@ else:
 
 keybinds = userSettings.get("keybinds", defaultSettings["keybinds"])
 debugMode = userSettings.get("debugMode", defaultSettings["debugMode"])
+rainbowModeUnlocked = userSettings.get("rainbowModeUnlocked", defaultSettings["rainbowModeUnlocked"])
 debugSettings = userSettings.get("debugSettings", defaultSettings["debugSettings"])
 
 

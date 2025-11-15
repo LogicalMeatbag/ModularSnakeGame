@@ -59,6 +59,8 @@ import random
 import settings_manager
 import ui
 from game_controller import GameController
+import base64
+import pickle
 
 class GameState(Enum):
     MAIN_MENU = 1
@@ -128,9 +130,25 @@ def handle_game_update(time_since_last_move, delta_time, game_instance, active_e
     
     return time_since_last_move, game_over
 
-def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func):
+def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func, konami_sequence):
     """Handles events for the MAIN_MENU state."""
+    # This is an obfuscated version of the Konami Code sequence.
+    # It's stored as a Base64 encoded string to hide its purpose.
+    encoded_sequence = b'gASVFAAAAAAAAABdlCiMCgFVUAAAAAAAAIylg5Qu'
+    secret_code = pickle.loads(base64.b64decode(encoded_sequence))
+
     if event.type == pygame.KEYDOWN:
+        # --- Secret Code Logic ---
+        konami_sequence.append(event.key)
+        if len(konami_sequence) > len(secret_code):
+            konami_sequence.pop(0) # Keep the list at the correct size
+
+        if konami_sequence == secret_code and not settings.rainbowModeUnlocked:
+            settings.rainbowModeUnlocked = True
+            settings.userSettings["rainbowModeUnlocked"] = True # Save the unlock
+            settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+            settings.eatSound.play() # Play a confirmation sound
+
         if event.key == pygame.K_RETURN:
             return start_new_game_func()
         elif event.key == pygame.K_s:
@@ -325,6 +343,9 @@ def main():
     current_state = GameState.MAIN_MENU
     running = True
 
+    # --- Easter Egg State ---
+    konami_code_sequence = []
+
     color_names = list(settings.colorOptions.keys()) + ["Custom"]
     current_color_index = color_names.index(settings.userSettings.get("snakeColorName", settings.defaultSettings["snakeColorName"]))
 
@@ -390,7 +411,7 @@ def main():
 
             # --- State-based Event Handling ---
             if current_state == GameState.MAIN_MENU:
-                new_state = handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game)
+                new_state = handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game, konami_code_sequence)
                 if new_state is None:
                     running = False
                 else:
@@ -467,6 +488,9 @@ def main():
         pygame.draw.rect(settings.window, settings.backgroundColor, game_area_rect)
 
         if current_state == GameState.MAIN_MENU:
+            color_names = list(settings.colorOptions.keys()) + ["Custom"]
+            if settings.rainbowModeUnlocked:
+                color_names.append("Rainbow")
             menu_buttons = ui.draw_main_menu(settings.window)
         
         elif current_state == GameState.COLOR_SETTINGS:

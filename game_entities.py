@@ -232,8 +232,20 @@ class Snake:
                 final_image, final_rect = self._rotate_and_center(image_to_rotate, angle, rect)
 
             # Color the final image and draw it
-            colored_image = ui.tint_surface(final_image, settings.snakeColor)
-            surface.blit(colored_image, final_rect)
+            # --- [EASTER EGG] Rainbow Snake Logic ---
+            if settings.userSettings.get("snakeColorName") == "Rainbow":
+                # Calculate a hue that shifts over time and with each segment
+                hue = (pygame.time.get_ticks() / 20 + index * 15) % 360
+                # Create a color object and set its hue
+                rainbow_color = pygame.Color(0) # Start with black
+                rainbow_color.hsva = (hue, 100, 100, 100) # Set Hue, Saturation, Value, Alpha
+                
+                colored_image = ui.tint_surface(final_image, rainbow_color)
+                surface.blit(colored_image, final_rect)
+            else:
+                # Default behavior
+                colored_image = ui.tint_surface(final_image, settings.snakeColor)
+                surface.blit(colored_image, final_rect)
 
 
 class Food:
