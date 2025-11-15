@@ -102,6 +102,10 @@ EVENT_DURATION = 10 * 1000 # Most events last for 10 seconds
 EVENT_NOTIFICATION_DURATION = 3 * 1000 # "Apples Galore!" message shows for 3 seconds
 EVENT_COUNTDOWN_DURATION = 5 * 1000 # Start countdown 5 seconds before event can trigger
 
+# --- [NEW] Death Animation Settings ---
+DEATH_ANIMATION_INITIAL_PAUSE = 250 # A brief pause before the animation starts.
+DEATH_ANIMATION_SEGMENT_FADE_DURATION = 500 # How long each individual segment takes to fade.
+
 # Event-specific values
 APPLES_GALORE_COUNT = 15
 GOLDEN_APPLE_RAIN_COUNT = 10
@@ -172,6 +176,7 @@ snakeHeadFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head
 snakeBodyFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_straight.png')
 snakeTailFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_end.png')
 snakeTurnFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_corner.png')
+snakeHeadLoseFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head_lose.png')
 
 appleFile = os.path.join(base_path, 'assets', 'images', 'food', 'apple.png') # Assumed path for the apple
 
@@ -198,6 +203,7 @@ try:
         'body': pygame.image.load(snakeBodyFile).convert_alpha(),
         'tail': pygame.image.load(snakeTailFile).convert_alpha(),
         'turn': pygame.image.load(snakeTurnFile).convert_alpha(),
+        'head_lose': pygame.image.load(snakeHeadLoseFile).convert_alpha(),
     }
 except pygame.error as e:
     errorMessage = (

@@ -46,28 +46,37 @@ class GameController:
         Moves snake, checks for collisions, etc.
         Returns True if the game is over, False otherwise.
         """
-        self.snake.update_position()
+        # --- [REFACTOR] Look Before You Leap ---
+        # 1. Determine the next position of the snake's head.
+        next_pos = list(self.snake.get_head_pos())
+        self.snake.direction = self.snake.change_to # Lock in direction for this tick
+        if self.snake.direction == 'UP':
+            next_pos[1] -= 1
+        elif self.snake.direction == 'DOWN':
+            next_pos[1] += 1
+        elif self.snake.direction == 'LEFT':
+            next_pos[0] -= 1
+        elif self.snake.direction == 'RIGHT':
+            next_pos[0] += 1
 
-        eaten_food = self.food.check_collision(self.snake.get_head_pos())
+        # 2. Check if this next position is a game-over collision.
+        if self.snake.check_collision(next_pos) or self.snake.check_wall_collision(next_pos):
+            return True # Game is over, snake does not move.
+
+        # 3. If the move is safe, update the snake's position.
+        self.snake.update_position(next_pos)
+
+        # 4. Check for food collision at the new, safe position.
+        eaten_food = self.food.check_collision(next_pos)
         
         if eaten_food:
             settings.eatSound.play()
-            self.snake.grow() # Grow the snake
-            
-            # Apply effects based on food type
+            self.snake.grow()
             if eaten_food['type'] == 'normal':
                 self.score += 1
             elif eaten_food['type'] == 'golden':
                 self.score += settings.goldenFoodScore
-            # elif eaten_food['type'] == 'speed':
-            #     self.score += settings.speedFoodScore
-            #     self.speed += 5 # e.g., temporary speed boost
-            
-            # Speed now increases based on score, which is a more balanced progression.
             self.normalSpeed = settings.startSpeed + (self.score // 5) # e.g., speed increases every 5 points
-
-            # Only spawn a new normal apple when a normal apple is eaten.
-            # This prevents the normal apple from respawning when a golden one is eaten, for instance.
             if eaten_food['type'] == 'normal':
                 if not self.is_food_event_active(active_event):
                     chance = settings.debugSettings['goldenAppleChanceOverride'] if settings.debugMode else settings.goldenFoodChance
@@ -77,20 +86,6 @@ class GameController:
             if not self.is_speed_event_active(active_event):
                 self.speed = self.normalSpeed # This is the default behavior
             self.snake.move() # No food, so just move
-
-        # Check for game-over collisions
-        if self.snake.check_wall_collision() or self.snake.check_collision():
-            return True  # Game is over
-        
-        # for obstacle in self.obstacles.items:
-        #     if self.snake.get_head_pos() == obstacle['pos']:
-        #         settings.obstacleHitSound.play()
-        
-        # --- [TEMPLATE] How to add ongoing event logic ---
-        # if active_event == "My New Event":
-        #     # This code will run every game tick while the event is active.
-        #     # For example, you could slowly drain the player's score.
-        #     self.score = max(0, self.score - 0.01)
 
         return False # Game continues
         
@@ -157,9 +152,9 @@ class GameController:
         """
         return active_event in ["Racecar Snake", "Slow Snake"]
             
-    def draw(self, surface):
+    def draw(self, surface, isDying=False, fadeProgress=None, staggerDelay=0.0):
         """Draws all active game elements."""
-        self.snake.draw(surface)
+        self.snake.draw(surface, isDying, fadeProgress, staggerDelay)
         self.food.draw(surface)
         # self.obstacles.draw(surface) # Example for new entities
         # We draw the score here because it's part of the 'playing' screen

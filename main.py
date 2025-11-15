@@ -5,12 +5,9 @@ main.py
 - It initializes the game and contains the main game loop.
 - It manages the overall game state (MainMenu, Playing, GameOver).
 """
-from settings import gameTitle # so we can print it before running the main.py code
 import sys
 import os
 import error_handler
-
-print(f'Starting {gameTitle}... (Python {sys.version_info.major}.{sys.version_info.minor})')
 
 # This will catch any error that isn't explicitly handled elsewhere
 # and display it in a user-friendly GUI window before the program
@@ -71,6 +68,7 @@ class GameState(Enum):
     CUSTOM_COLOR_SETTINGS = 7
     EVENT_COUNTDOWN = 8
     DEBUG_SETTINGS = 9
+    DYING = 10
     
 def update_dynamic_dimensions(window_surface):
     """
@@ -401,9 +399,14 @@ def main():
     # --- [NEW] State for custom color menu interactions ---
     heldButton = None
     heldButtonStartTime = 0
+
+    # --- [NEW] State for the death animation ---
+    deathAnimationStartTime = 0
+    deathSoundHasPlayed = False
+    deathStaggerDelay = 0 # Will be calculated dynamically
     heldButtonLastTick = 0
-    INITIAL_HOLD_DELAY = 400 # ms
-    REPEATED_HOLD_DELAY = 40 # ms
+    INITIAL_HOLD_DELAY = 400
+    REPEATED_HOLD_DELAY = 40
 
     editingColorComponent = None # 'R', 'G', 'B', or None
     rgbInputString = ""
@@ -583,9 +586,20 @@ def main():
             # The game.update() method now handles all game logic
             time_since_last_move, is_game_over = handle_game_update(time_since_last_move, delta_time, game, active_event)
             if is_game_over:
-                settings.gameOverSound.play()
                 game.save_score_if_high()
-                current_state = GameState.GAME_OVER
+                # Instead of ending instantly, start the death animation.
+                current_state = GameState.DYING
+                deathAnimationStartTime = pygame.time.get_ticks()
+                deathSoundHasPlayed = False
+                # --- [REFACTOR] Calculate stagger delay ONCE when animation starts ---
+                soundDurationMs = settings.gameOverSound.get_length() * 1000
+                # The time available for staggering is the total sound duration minus one segment's fade time.
+                timeForStaggering = soundDurationMs - settings.DEATH_ANIMATION_SEGMENT_FADE_DURATION
+                numSegments = len(game.snake.body)
+                if numSegments > 1 and timeForStaggering > 0:
+                    deathStaggerDelay = timeForStaggering / (numSegments - 1)
+                else:
+                    deathStaggerDelay = 0 # If snake is tiny or sound is short, they fade together.
             
             # Drawing is independent of logic updates and will run at the monitor's refresh rate.
             if current_state == GameState.PLAYING:
@@ -600,9 +614,18 @@ def main():
         elif current_state == GameState.EVENT_COUNTDOWN:
             time_since_last_move, is_game_over = handle_game_update(time_since_last_move, delta_time, game, active_event)
             if is_game_over: # It's possible to die during the countdown
-                settings.gameOverSound.play()
                 game.save_score_if_high()
-                current_state = GameState.GAME_OVER
+                current_state = GameState.DYING
+                deathAnimationStartTime = pygame.time.get_ticks()
+                deathSoundHasPlayed = False
+                # --- [REFACTOR] Calculate stagger delay ONCE when animation starts ---
+                soundDurationMs = settings.gameOverSound.get_length() * 1000
+                timeForStaggering = soundDurationMs - settings.DEATH_ANIMATION_SEGMENT_FADE_DURATION
+                numSegments = len(game.snake.body)
+                if numSegments > 1 and timeForStaggering > 0:
+                    deathStaggerDelay = timeForStaggering / (numSegments - 1)
+                else:
+                    deathStaggerDelay = 0
             
             # Drawing is independent
             game.draw(settings.window) # Keep drawing the game
@@ -638,6 +661,27 @@ def main():
             pause_surface = pause_font.render("PAUSED", True, settings.white)
             pause_rect = pause_surface.get_rect(center=(settings.window.get_width() / 2, settings.window.get_height() / 2))
             settings.window.blit(pause_surface, pause_rect)
+
+        elif current_state == GameState.DYING:
+            timeSinceDeath = pygame.time.get_ticks() - deathAnimationStartTime
+            fade_progress = None
+
+            # After the initial pause, start the sound and the fade-out animation.
+            if timeSinceDeath > settings.DEATH_ANIMATION_INITIAL_PAUSE:
+                if not deathSoundHasPlayed:
+                    settings.gameOverSound.play()
+                    deathSoundHasPlayed = True
+                
+                # The fade_progress is now just the time since the animation began.
+                fade_progress = timeSinceDeath - settings.DEATH_ANIMATION_INITIAL_PAUSE
+
+            # Draw the snake, passing the fade progress to it.
+            game.draw(settings.window, isDying=True, fadeProgress=fade_progress, staggerDelay=deathStaggerDelay)
+            
+            # Transition to the game over screen once the animation is complete.
+            soundDurationMs = settings.gameOverSound.get_length() * 1000
+            if fade_progress is not None and fade_progress >= soundDurationMs:
+                current_state = GameState.GAME_OVER
 
         # --- Event Management (runs continuously during gameplay) ---
         if current_state in [GameState.PLAYING, GameState.EVENT_COUNTDOWN]:

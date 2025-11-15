@@ -29,6 +29,7 @@ class Snake:
         segment2_x = start_x - 1 # One block to the left
         
         self.body = [[start_x, start_y], [segment2_x, start_y]]
+        self.initial_body = list(self.body) # Store the body at the moment of death
         # Reset event state
         self.pre_event_length = 0
         self.is_size_event_active = False
@@ -45,21 +46,13 @@ class Snake:
         if event_key in settings.keybinds['RIGHT'] and self.direction != 'LEFT':
             self.change_to = 'RIGHT'
 
-    def update_position(self):
-        """Moves the snake by one block in its current direction."""
-        # Validate the direction change
-        self.direction = self.change_to
-        
-        if self.direction == 'UP':
-            self.pos[1] -= 1
-        elif self.direction == 'DOWN':
-            self.pos[1] += 1
-        elif self.direction == 'LEFT':
-            self.pos[0] -= 1
-        elif self.direction == 'RIGHT':
-            self.pos[0] += 1
-
+    def update_position(self, next_pos):
+        """
+        Moves the snake's head to the pre-validated next position.
+        """
+        self.pos = next_pos
         # The snake's head always moves to the new position.
+        self.initial_body = list(self.body) # Store the body state before the move
         self.body.insert(0, list(self.pos))
 
     def grow(self):
@@ -105,19 +98,19 @@ class Snake:
         """Moves the snake by removing the tail segment (when no food is eaten)."""
         self.body.pop()
 
-    def check_collision(self):
+    def check_collision(self, next_pos):
         """Checks for wall collisions or self-collisions."""
         # Self-collision
         for block in self.body[1:]:
-            if self.pos[0] == block[0] and self.pos[1] == block[1]:
+            if next_pos[0] == block[0] and next_pos[1] == block[1]:
                 return True
         return False
     
-    def check_wall_collision(self):
+    def check_wall_collision(self, next_pos):
         """Checks only for wall collisions. Separated for clarity."""
         # --- [REFACTOR] Check against grid dimensions ---
-        if (self.pos[0] < 0 or self.pos[0] >= settings.gridWidth or
-            self.pos[1] < 0 or self.pos[1] >= settings.gridHeight):
+        if (next_pos[0] < 0 or next_pos[0] >= settings.gridWidth or
+            next_pos[1] < 0 or next_pos[1] >= settings.gridHeight):
             return True
 
     def get_head_pos(self):
@@ -154,13 +147,13 @@ class Snake:
         new_rect = rotated_image.get_rect(center=cell_rect.center)
         return rotated_image, new_rect
 
-    def draw(self, surface):
+    def draw(self, surface, isDying=False, fadeProgress=None, staggerDelay=0.0):
         """
         Draws the snake using sprites, determining the correct orientation for each segment.
         """
         self._update_scaled_images() # Efficiently rescale images if needed
 
-        for index, segment in enumerate(self.body):
+        for original_index, segment in enumerate(self.body):
             # The segment's screen position
             rect = pygame.Rect(
                 int(segment[0] * self.last_block_size + settings.xOffset), 
@@ -169,9 +162,9 @@ class Snake:
                 self.last_block_size
             )
 
-            if index == 0:  # Head
-                # Head orientation should be based on its current direction of travel
-                image_to_rotate = self.scaled_images['head']
+            if original_index == 0:  # Head
+                # Use the 'head_lose' sprite if dying, otherwise use the normal head.
+                image_to_rotate = self.scaled_images['head_lose'] if isDying else self.scaled_images['head']
                 if self.direction == 'UP':
                     angle = 0
                 elif self.direction == 'DOWN':
@@ -182,10 +175,10 @@ class Snake:
                     angle = -90
                 final_image, final_rect = self._rotate_and_center(image_to_rotate, angle, rect)
 
-            elif index == len(self.body) - 1:  # Tail
+            elif original_index == len(self.body) - 1:  # Tail
                 image_to_rotate = self.scaled_images['tail']
                 # Use vector subtraction to find the correct direction
-                prev_segment = self.body[index - 1]
+                prev_segment = self.body[original_index - 1]
                 vec_x = prev_segment[0] - segment[0]
                 vec_y = prev_segment[1] - segment[1]
 
@@ -200,8 +193,8 @@ class Snake:
                 final_image, final_rect = self._rotate_and_center(image_to_rotate, angle, rect)
 
             else:  # Body segments
-                prev_segment = self.body[index - 1]
-                next_segment = self.body[index + 1]
+                prev_segment = self.body[original_index - 1]
+                next_segment = self.body[original_index + 1]
                 
                 # Straight piece
                 if prev_segment[0] == next_segment[0]:  # Vertical
@@ -231,23 +224,32 @@ class Snake:
                 
                 final_image, final_rect = self._rotate_and_center(image_to_rotate, angle, rect)
 
-            # Color the final image and draw it
+            # --- Tint the image first ---
             # --- [EASTER EGG] Rainbow Snake Logic ---
             if settings.userSettings.get("snakeColorName") == "Rainbow":
-                # Calculate a hue that shifts over time. By removing the 'index'
-                # from this calculation, we ensure the entire snake is a single,
-                # solid color that cycles through the spectrum.
                 hue = (pygame.time.get_ticks() / 20) % 360
-                # Create a color object and set its hue
-                rainbow_color = pygame.Color(0) # Start with black
-                rainbow_color.hsva = (hue, 100, 100, 100) # Set Hue, Saturation, Value, Alpha
-                
+                rainbow_color = pygame.Color(0)
+                rainbow_color.hsva = (hue, 100, 100, 100)
                 colored_image = ui.tint_surface(final_image, rainbow_color)
-                surface.blit(colored_image, final_rect)
             else:
                 # Default behavior
                 colored_image = ui.tint_surface(final_image, settings.snakeColor)
-                surface.blit(colored_image, final_rect)
+            
+            # --- Then, apply the alpha fade if the animation is active ---
+            if fadeProgress is not None:
+                # Use the dynamically calculated stagger delay.
+                stagger = original_index * staggerDelay
+                fade_start_time = stagger
+                fade_end_time = fade_start_time + settings.DEATH_ANIMATION_SEGMENT_FADE_DURATION
+                
+                # Calculate this segment's individual fade progress (0.0 to 1.0).
+                segment_progress = (fadeProgress - fade_start_time) / settings.DEATH_ANIMATION_SEGMENT_FADE_DURATION
+                segment_progress = max(0.0, min(1.0, segment_progress)) # Clamp value
+                
+                colored_image.set_alpha(int(255 * (1.0 - segment_progress))) # Apply alpha
+
+            # --- Finally, draw the fully prepared image to the screen once ---
+            surface.blit(colored_image, final_rect)
 
 
 class Food:
