@@ -128,6 +128,176 @@ def handle_game_update(time_since_last_move, delta_time, game_instance, active_e
     
     return time_since_last_move, game_over
 
+def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func):
+    """Handles events for the MAIN_MENU state."""
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_RETURN:
+            return start_new_game_func()
+        elif event.key == pygame.K_s:
+            return GameState.COLOR_SETTINGS
+    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        if menu_buttons['play'].collidepoint(mouse_pos):
+            return start_new_game_func()
+        elif menu_buttons['settings'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            return GameState.COLOR_SETTINGS
+        elif menu_buttons['quit'].collidepoint(mouse_pos):
+            return None # Signal to quit
+    return GameState.MAIN_MENU # No state change
+
+def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names, current_color_index):
+    """Handles events for the COLOR_SETTINGS state. Returns new state and color index."""
+    new_state = GameState.COLOR_SETTINGS
+    new_color_index = current_color_index
+
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_RIGHT:
+            new_color_index = (current_color_index + 1) % len(color_names)
+        elif event.key == pygame.K_LEFT:
+            new_color_index = (current_color_index - 1) % len(color_names)
+        elif event.key == pygame.K_RETURN or event.key == pygame.K_ESCAPE:
+            settings.userSettings["snakeColorName"] = color_names[current_color_index]
+            settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+            new_state = GameState.MAIN_MENU
+    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        if settings_buttons['left'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            new_color_index = (current_color_index - 1) % len(color_names)
+        elif settings_buttons['right'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            new_color_index = (current_color_index + 1) % len(color_names)
+        elif settings_buttons['keybinds'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            new_state = GameState.KEYBIND_SETTINGS
+        elif settings_buttons['debug_toggle'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            settings.debugMode = not settings.debugMode
+            settings.userSettings["debugMode"] = settings.debugMode
+        elif settings_buttons['save'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            settings.userSettings["snakeColorName"] = color_names[current_color_index]
+            settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+            new_state = GameState.MAIN_MENU
+        elif color_names[current_color_index] == "Custom" and settings_buttons.get('colorNameDisplay') and settings_buttons['colorNameDisplay'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            new_state = GameState.CUSTOM_COLOR_SETTINGS
+        elif settings.debugMode and settings_buttons.get('debug_menu') and settings_buttons['debug_menu'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            new_state = GameState.DEBUG_SETTINGS
+
+    if new_color_index != current_color_index:
+        update_snake_color_from_name(color_names[new_color_index])
+
+    return new_state, new_color_index
+
+def handle_keybind_settings_events(event, mouse_pos, keybind_buttons, temp_keybinds, selected_action):
+    """Handles events for KEYBIND_SETTINGS. Returns new state and selected action."""
+    new_state = GameState.KEYBIND_SETTINGS
+    new_selected_action = selected_action
+
+    if event.type == pygame.KEYDOWN:
+        if selected_action:
+            temp_keybinds[selected_action][0] = event.key
+            new_selected_action = None
+        elif event.key == pygame.K_ESCAPE:
+            new_state = GameState.COLOR_SETTINGS
+    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        if selected_action:
+            new_selected_action = None
+        else:
+            for action, rect in keybind_buttons.items():
+                if rect.collidepoint(mouse_pos):
+                    if action == 'save':
+                        settings.buttonClickSound.play()
+                        settings.keybinds = temp_keybinds
+                        settings.userSettings["keybinds"] = temp_keybinds
+                        settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+                        new_state = GameState.COLOR_SETTINGS
+                    else:
+                        settings.buttonClickSound.play()
+                        new_selected_action = action
+                    break
+    return new_state, new_selected_action
+
+def handle_custom_color_settings_events(event, mouse_pos, custom_color_buttons, temp_custom_color, editing_comp, input_str):
+    """Handles events for CUSTOM_COLOR_SETTINGS. Returns state, editing component, and input string."""
+    new_state = GameState.CUSTOM_COLOR_SETTINGS
+    new_editing_comp = editing_comp
+    new_input_str = input_str
+    held_button_action = None
+
+    if editing_comp:
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                try:
+                    value = int(input_str)
+                    component_index = ['R', 'G', 'B'].index(editing_comp)
+                    temp_custom_color[component_index] = max(0, min(255, value))
+                except ValueError: pass
+                new_editing_comp = None
+            elif event.key == pygame.K_ESCAPE:
+                new_editing_comp = None
+            elif event.key == pygame.K_BACKSPACE:
+                new_input_str = input_str[:-1]
+            elif event.unicode.isdigit():
+                new_input_str += event.unicode
+    else:
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            clicked_on_button = False
+            for button, rect in custom_color_buttons.items():
+                if rect.collidepoint(mouse_pos):
+                    clicked_on_button = True
+                    settings.buttonClickSound.play()
+                    if button.startswith('inc_') or button.startswith('dec_'):
+                        held_button_action = button
+                    elif button.startswith('edit_'):
+                        new_editing_comp = button.split('_')[1]
+                        component_index = ['R', 'G', 'B'].index(new_editing_comp)
+                        new_input_str = str(temp_custom_color[component_index])
+                    elif button == 'apply':
+                        settings.userSettings["customColor"] = temp_custom_color
+                        settings.userSettings["snakeColorName"] = "Custom"
+                        settings.snakeColor = tuple(temp_custom_color)
+                        settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+                        new_state = GameState.COLOR_SETTINGS
+                    elif button == 'back':
+                        new_state = GameState.COLOR_SETTINGS
+                    break
+            if not clicked_on_button:
+                new_editing_comp = None
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            new_state = GameState.COLOR_SETTINGS
+
+    return new_state, new_editing_comp, new_input_str, held_button_action
+
+def handle_debug_settings_events(event, mouse_pos, debug_buttons, temp_debug_settings):
+    """Handles events for the DEBUG_SETTINGS state."""
+    new_state = GameState.DEBUG_SETTINGS
+    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        for button, rect in debug_buttons.items():
+            if rect.collidepoint(mouse_pos):
+                settings.buttonClickSound.play()
+                if button.startswith('show'):
+                    temp_debug_settings[button] = not temp_debug_settings[button]
+                elif button.startswith('inc_'):
+                    key = button[4:]
+                    temp_debug_settings[key] += 1
+                elif button.startswith('dec_'):
+                    key = button[4:]
+                    temp_debug_settings[key] = max(1, temp_debug_settings[key] - 1)
+                elif button == 'back':
+                    new_state = GameState.COLOR_SETTINGS
+                break
+    elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        new_state = GameState.COLOR_SETTINGS
+    
+    if new_state != GameState.DEBUG_SETTINGS:
+        settings.debugSettings = temp_debug_settings.copy()
+        settings.userSettings["debugSettings"] = settings.debugSettings
+        settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+        
+    return new_state
+
 def main():
     # The game controller manages the actual game session
     game = GameController()
@@ -218,190 +388,39 @@ def main():
             # --- Get mouse position once per frame ---
             mouse_pos = pygame.mouse.get_pos()
 
+            # --- State-based Event Handling ---
             if current_state == GameState.MAIN_MENU:
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN:
-                        current_state = start_new_game()
-                    elif event.key == pygame.K_s: # 'S' for settings
-                        current_state = GameState.COLOR_SETTINGS
-                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if menu_buttons['play'].collidepoint(mouse_pos):
-                        current_state = start_new_game()
-                    elif menu_buttons['settings'].collidepoint(mouse_pos):
-                        settings.buttonClickSound.play()
-                        current_state = GameState.COLOR_SETTINGS
-                    elif menu_buttons['quit'].collidepoint(mouse_pos):
-                        running = False
-            
+                new_state = handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game)
+                if new_state is None:
+                    running = False
+                else:
+                    current_state = new_state
+
             elif current_state == GameState.COLOR_SETTINGS:
-                # This state handles changing the snake's color
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RIGHT:
-                        current_color_index = (current_color_index + 1) % len(color_names)
-                        update_snake_color_from_name(color_names[current_color_index])
-                    elif event.key == pygame.K_LEFT:
-                        current_color_index = (current_color_index - 1) % len(color_names)
-                        update_snake_color_from_name(color_names[current_color_index])
-                    elif event.key == pygame.K_RETURN or event.key == pygame.K_ESCAPE:
-                        # Save current selection and go back
-                        settings.userSettings["snakeColorName"] = color_names[current_color_index]
-                        settings_manager.save_settings(settings.settingsFile, settings.userSettings)
-                        current_state = GameState.MAIN_MENU
-                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if settings_buttons['left'].collidepoint(mouse_pos):
-                        settings.buttonClickSound.play()
-                        current_color_index = (current_color_index - 1) % len(color_names)
-                    elif settings_buttons['right'].collidepoint(mouse_pos):
-                        settings.buttonClickSound.play()
-                        current_color_index = (current_color_index + 1) % len(color_names)
-
-                    # Update color immediately after any click for visual feedback
-                    update_snake_color_from_name(color_names[current_color_index])
-                    if settings_buttons['keybinds'].collidepoint(mouse_pos):
-                        settings.buttonClickSound.play()
-                        current_state = GameState.KEYBIND_SETTINGS
-                        # Reset rebinding state when entering the menu
-                        selected_action_to_rebind = None
-                    elif settings_buttons['debug_toggle'].collidepoint(mouse_pos):
-                        settings.buttonClickSound.play()
-                        settings.debugMode = not settings.debugMode # Toggle the flag
-                        settings.userSettings["debugMode"] = settings.debugMode # Update for saving
-                    elif settings_buttons['save'].collidepoint(mouse_pos):
-                        # Save the current color selection and go back
-                        settings.buttonClickSound.play()                        
-                        settings.userSettings["snakeColorName"] = color_names[current_color_index]
-                        # Keybinds are saved in their own menu, so we only need to save color settings here.
-                        settings_manager.save_settings(settings.settingsFile, settings.userSettings)
-                        current_state = GameState.MAIN_MENU
-
-                    if color_names[current_color_index] == "Custom" and settings_buttons.get('colorNameDisplay') and settings_buttons['colorNameDisplay'].collidepoint(mouse_pos):
-                        settings.buttonClickSound.play()
-                        current_state = GameState.CUSTOM_COLOR_SETTINGS
-
-                    if settings.debugMode and settings_buttons.get('debug_menu') and settings_buttons['debug_menu'].collidepoint(mouse_pos):
-                        settings.buttonClickSound.play()
-                        current_state = GameState.DEBUG_SETTINGS
+                current_state, current_color_index = handle_color_settings_events(event, mouse_pos, settings_buttons, color_names, current_color_index)
+                if current_state == GameState.KEYBIND_SETTINGS:
+                    selected_action_to_rebind = None # Reset on entering menu
 
             elif current_state == GameState.KEYBIND_SETTINGS:
-                if event.type == pygame.KEYDOWN:
-                    if selected_action_to_rebind:
-                        # We are waiting for a key press to assign it
-                        # For simplicity, we'll assign to the primary key slot
-                        temp_keybinds[selected_action_to_rebind][0] = event.key
-                        selected_action_to_rebind = None # Stop waiting
-                    elif event.key == pygame.K_ESCAPE:
-                        # Discard changes and go back
-                        current_state = GameState.COLOR_SETTINGS
-
-                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if selected_action_to_rebind:
-                        # If waiting for input, a click will cancel the rebind
-                        selected_action_to_rebind = None
-                    else:
-                        # Check if a keybind button was clicked
-                        for action, rect in keybind_buttons.items():
-                            if rect.collidepoint(mouse_pos):
-                                if action == 'save':
-                                    settings.buttonClickSound.play()
-                                    # Save changes and go back
-                                    settings.keybinds = temp_keybinds
-                                    settings.userSettings["keybinds"] = temp_keybinds
-                                    settings_manager.save_settings(settings.settingsFile, settings.userSettings)
-                                    current_state = GameState.COLOR_SETTINGS
-                                else:
-                                    # Set this action to be rebound
-                                    settings.buttonClickSound.play()
-                                    selected_action_to_rebind = action
-                                break # Stop checking after a click
+                current_state, selected_action_to_rebind = handle_keybind_settings_events(event, mouse_pos, keybind_buttons, temp_keybinds, selected_action_to_rebind)
 
             elif current_state == GameState.CUSTOM_COLOR_SETTINGS:
-                if editingColorComponent:
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_RETURN:
-                            # Apply the typed value
-                            try:
-                                value = int(rgbInputString)
-                                component_index = ['R', 'G', 'B'].index(editingColorComponent)
-                                temp_custom_color[component_index] = max(0, min(255, value))
-                            except ValueError:
-                                pass # Ignore invalid input
-                            editingColorComponent = None
-                        elif event.key == pygame.K_ESCAPE:
-                            editingColorComponent = None # Cancel editing
-                        elif event.key == pygame.K_BACKSPACE:
-                            rgbInputString = rgbInputString[:-1]
-                        elif event.unicode.isdigit():
-                            rgbInputString += event.unicode
-                else:
-                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                        clicked_on_button = False
-                        for button, rect in custom_color_buttons.items():
-                            if rect.collidepoint(mouse_pos):
-                                clicked_on_button = True
-                                settings.buttonClickSound.play()
-                                if button.startswith('inc_') or button.startswith('dec_'):
-                                    # Start holding the button
-                                    heldButton = button
-                                    heldButtonStartTime = pygame.time.get_ticks()
-                                    heldButtonLastTick = heldButtonStartTime
-                                    # Perform initial click action
-                                    component = button.split('_')[1]
-                                    component_index = ['R', 'G', 'B'].index(component)
-                                    amount = 5 if button.startswith('inc_') else -5
-                                    temp_custom_color[component_index] = max(0, min(255, temp_custom_color[component_index] + amount))
-                                elif button.startswith('edit_'):
-                                    # Start editing a text value
-                                    editingColorComponent = button.split('_')[1]
-                                    component_index = ['R', 'G', 'B'].index(editingColorComponent)
-                                    rgbInputString = str(temp_custom_color[component_index])
-                                elif button == 'apply':
-                                    # Save the custom color and apply it
-                                    settings.userSettings["customColor"] = temp_custom_color
-                                    settings.userSettings["snakeColorName"] = "Custom"
-                                    settings.snakeColor = tuple(temp_custom_color)
-                                    settings_manager.save_settings(settings.settingsFile, settings.userSettings)
-                                    current_state = GameState.COLOR_SETTINGS
-                                elif button == 'back':
-                                    # Discard changes and go back
-                                    temp_custom_color = list(settings.userSettings.get("customColor", list(settings.snakeColor)))
-                                    current_state = GameState.COLOR_SETTINGS
-                                break
-                        if not clicked_on_button:
-                            editingColorComponent = None # Stop editing if clicking elsewhere
-
-                    elif event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_ESCAPE:
-                            # Discard changes and go back
-                            temp_custom_color = list(settings.userSettings.get("customColor", list(settings.snakeColor)))
-                            current_state = GameState.COLOR_SETTINGS
+                new_state, new_edit_comp, new_input_str, held_action = handle_custom_color_settings_events(event, mouse_pos, custom_color_buttons, temp_custom_color, editingColorComponent, rgbInputString)
+                current_state, editingColorComponent, rgbInputString = new_state, new_edit_comp, new_input_str
+                if held_action:
+                    heldButton = held_action
+                    heldButtonStartTime = pygame.time.get_ticks()
+                    heldButtonLastTick = heldButtonStartTime
+                    # Perform initial click action
+                    component = heldButton.split('_')[1]
+                    component_index = ['R', 'G', 'B'].index(component)
+                    amount = 5 if heldButton.startswith('inc_') else -5
+                    temp_custom_color[component_index] = max(0, min(255, temp_custom_color[component_index] + amount))
+                if current_state == GameState.COLOR_SETTINGS: # If we are leaving the menu
+                    temp_custom_color = list(settings.userSettings.get("customColor", list(settings.snakeColor))) # Reset temp color
 
             elif current_state == GameState.DEBUG_SETTINGS:
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    for button, rect in debug_settings_buttons.items():
-                        if rect.collidepoint(mouse_pos):
-                            settings.buttonClickSound.play()
-                            if button.startswith('show'):
-                                # Toggle visibility
-                                temp_debug_settings[button] = not temp_debug_settings[button]
-                            elif button.startswith('inc_'):
-                                key = button[4:]
-                                temp_debug_settings[key] += 1
-                            elif button.startswith('dec_'):
-                                key = button[4:]
-                                temp_debug_settings[key] = max(1, temp_debug_settings[key] - 1) # Prevent going below 1
-                            elif button == 'back':
-                                # Save changes and go back
-                                settings.debugSettings = temp_debug_settings.copy()
-                                settings.userSettings["debugSettings"] = settings.debugSettings
-                                settings_manager.save_settings(settings.settingsFile, settings.userSettings)
-                                current_state = GameState.COLOR_SETTINGS
-                            break # Stop checking after a click
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    # Save and go back on escape as well
-                    settings.debugSettings = temp_debug_settings.copy()
-                    settings.userSettings["debugSettings"] = settings.debugSettings
-                    settings_manager.save_settings(settings.settingsFile, settings.userSettings)
-                    current_state = GameState.COLOR_SETTINGS
+                current_state = handle_debug_settings_events(event, mouse_pos, debug_settings_buttons, temp_debug_settings)
             
             elif current_state == GameState.PLAYING:
                 # Pass game-related inputs to the controller
@@ -410,12 +429,10 @@ def main():
                     pause_start_time = pygame.time.get_ticks() # Record when pause starts
                     current_state = GameState.PAUSED
             
-            elif current_state == GameState.EVENT_COUNTDOWN:
+            elif current_state == GameState.EVENT_COUNTDOWN: # Also allow pausing during countdown
                 game.handle_input(event)
                 if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
-                    pause_start_time = pygame.time.get_ticks()
-                    current_state = GameState.PAUSED
-            
+                    current_state = GameState.PAUSED            
             elif current_state == GameState.PAUSED:
                 if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
                     pause_duration = pygame.time.get_ticks() - pause_start_time
