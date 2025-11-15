@@ -590,41 +590,6 @@ def main():
             # Drawing is independent of logic updates and will run at the monitor's refresh rate.
             if current_state == GameState.PLAYING:
                 game.draw(settings.window)
-
-            current_time = pygame.time.get_ticks()
-
-            # 1. Check if an active event has expired. This logic is now more complex.
-            if active_event:
-                is_food_event = game.is_food_event_active(active_event)
-
-                # Condition for timed events (e.g., BEEEG Snake, Racecar Snake)
-                if not is_food_event and current_time > event_start_time + settings.EVENT_DURATION:
-                    game.stop_event(active_event)
-                    last_event = active_event
-                    active_event = None
-                # Condition for objective-based events (e.g., Apples Galore)
-                elif is_food_event and not game.food.items:
-                    game.stop_event(active_event)
-                    last_event = active_event
-                    active_event = None
-
-            # 2. If no event is active, count up the main event timer.
-            if not active_event and current_state != GameState.EVENT_COUNTDOWN:
-                if event_timer < settings.EVENT_TIMER_MAX:
-                    event_timer += delta_time # Use our delta_time variable
-                else:
-                    # Timer is up. Roll the dice to see if we start a countdown.
-                    event_timer = 0 # Reset timer for the next cycle
-                    chance = settings.debugSettings['eventChanceOverride'] if settings.debugMode else settings.EVENT_CHANCE
-                    if random.randint(1, 100) <= chance:
-                        # Success! Start the pre-event countdown.
-                        current_state = GameState.EVENT_COUNTDOWN
-                        event_start_time = current_time # Use this to time the countdown
-
-            # 3. Handle drawing UI notifications
-            if current_time < notification_end_time:
-                if active_event: # Ensure there's an event to announce
-                    ui.draw_event_notification(settings.window, active_event)
             
             # Draw revert countdown separately from the notification to ensure it lasts for the full event duration.
             if active_event in ["BEEEG Snake", "Small Snake", "Racecar Snake", "Slow Snake"]:
@@ -673,6 +638,40 @@ def main():
             pause_surface = pause_font.render("PAUSED", True, settings.white)
             pause_rect = pause_surface.get_rect(center=(settings.window.get_width() / 2, settings.window.get_height() / 2))
             settings.window.blit(pause_surface, pause_rect)
+
+        # --- Event Management (runs continuously during gameplay) ---
+        if current_state in [GameState.PLAYING, GameState.EVENT_COUNTDOWN]:
+            current_time = pygame.time.get_ticks()
+
+            # 1. Check if an active event has expired.
+            if active_event:
+                is_food_event = game.is_food_event_active(active_event)
+                if not is_food_event and current_time > event_start_time + settings.EVENT_DURATION:
+                    game.stop_event(active_event)
+                    last_event, active_event = active_event, None
+                elif is_food_event and not game.food.items:
+                    game.stop_event(active_event)
+                    last_event, active_event = active_event, None
+
+            # 2. If no event is active, count up the main event timer.
+            if not active_event and current_state != GameState.EVENT_COUNTDOWN:
+                if event_timer < settings.EVENT_TIMER_MAX:
+                    event_timer += delta_time
+                else:
+                    event_timer = 0
+                    chance = settings.debugSettings['eventChanceOverride'] if settings.debugMode else settings.EVENT_CHANCE
+                    if random.randint(1, 100) <= chance:
+                        current_state = GameState.EVENT_COUNTDOWN
+                        event_start_time = current_time
+
+            # 3. Handle drawing UI notifications.
+            if current_time < notification_end_time:
+                if active_event:
+                    ui.draw_event_notification(settings.window, active_event)
+            
+            if active_event in ["BEEEG Snake", "Small Snake", "Racecar Snake", "Slow Snake"]:
+                time_left = (event_start_time + settings.EVENT_DURATION - current_time) / 1000
+                if time_left > 0: ui.draw_revert_countdown(settings.window, int(time_left) + 1)
 
         elif current_state == GameState.GAME_OVER:
             # Pass the final score and high score to the UI function
