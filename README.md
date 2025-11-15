@@ -104,14 +104,13 @@ This project is set up to be easily bundled into a single executable using **PyI
     Open a terminal in the project directory and run the following command. The `--add-data` flags are crucial for including the sound files.
     The simplest way is to copy the entire `assets` folder. For the best visual quality, provide a multi-resolution `.ico` file for the icon.
 
-    *On Windows, using the 'py' launcher to specify a version (e.g., 3.14)*
+    ### For Windows:
     ***
     ```sh
     py -3.14 -m PyInstaller --onefile --windowed --name "ANAHKENs Modular Snake Game" --icon="assets/images/icon.ico" --add-data "assets;assets" main.py
     ```
-    ***
-    *On MacOS/Linux, or if you don't have the py launcher installed*
-    ***
+    ### For MacOS & Linux:
+    *(Also if you don't have the `py` launcher installed)*
     ```sh
     python -m PyInstaller --onefile --windowed --name "SnakeGame" --icon="assets/images/icon.ico" --add-data "assets;assets" main.py
     ```
