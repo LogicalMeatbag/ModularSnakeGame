@@ -222,6 +222,10 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
             settings.buttonClickSound.play()
             settings.debugMode = not settings.debugMode
             settings.userSettings["debugMode"] = settings.debugMode
+        elif settings_buttons['fps_toggle'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            settings.showFps = not settings.showFps
+            settings.userSettings["showFps"] = settings.showFps
         elif settings_buttons['save'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
             settings.userSettings["snakeColorName"] = color_names[current_color_index]
@@ -679,7 +683,9 @@ def main():
             if active_event:
                 event_time_left = (event_start_time + settings.EVENT_DURATION - pygame.time.get_ticks()) / 1000
 
+            fps = settings.clock.get_fps()
             all_debug_info = {
+                "FPS": (settings.showFps, f"{fps:.1f}"),
                 "State": (settings.debugSettings['showState'], current_state.name),
                 "Snake Pos": (settings.debugSettings['showSnakePos'], str(game.snake.pos)),
                 "Snake Len": (settings.debugSettings['showSnakeLen'], len(game.snake.body)),
@@ -692,7 +698,8 @@ def main():
                 "Pre-Event Len": (settings.debugSettings['showPreEventLen'], game.snake.pre_event_length),
             }
 
-            visible_debug_info = {"High Score Saving": "DISABLED"}
+            visible_debug_info = {}
+            visible_debug_info["High Score Saving"] = "DISABLED"
             for key, (is_visible, value) in all_debug_info.items():
                 if is_visible:
                     visible_debug_info[key] = value

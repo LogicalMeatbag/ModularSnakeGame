@@ -121,6 +121,7 @@ defaultSettings = {
     },
     "debugMode": False,
     "rainbowModeUnlocked": False, # Easter Egg
+    "showFps": False, # Moved from debugSettings
     "debugSettings": {
         "showState": True,
         "showSnakePos": True,
@@ -157,6 +158,7 @@ else:
 keybinds = userSettings.get("keybinds", defaultSettings["keybinds"])
 debugMode = userSettings.get("debugMode", defaultSettings["debugMode"])
 rainbowModeUnlocked = userSettings.get("rainbowModeUnlocked", defaultSettings["rainbowModeUnlocked"])
+showFps = userSettings.get("showFps", defaultSettings["showFps"])
 debugSettings = userSettings.get("debugSettings", defaultSettings["debugSettings"])
 
 

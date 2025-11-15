@@ -155,24 +155,32 @@ def draw_settings_menu(surface, current_color_name):
     keybindsSurface = settings.scoreFont.render(keybindsText, True, keybindsColor) # Re-render with hover color
     surface.blit(keybindsSurface, keybindsSurface.get_rect(center=keybinds_rect.center))
 
-    debug_toggle_y = win_h * 0.78
+    # --- Toggles Section ---
+    toggle_y_start = win_h * 0.78
+    
+    # FPS Toggle
+    fps_label_surface = settings.scoreFont.render("Show FPS:", True, settings.white)
+    fps_label_rect = fps_label_surface.get_rect(midright=(win_w / 2, toggle_y_start - 25))
+    surface.blit(fps_label_surface, fps_label_rect)
+
+    fps_box_rect = pygame.Rect(0, 0, 30, 30)
+    fps_box_rect.midleft = (win_w / 2 + 10, toggle_y_start - 25)
+    fps_box_color = settings.white if fps_box_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    pygame.draw.rect(surface, fps_box_color, fps_box_rect, 2, 3)
+    if settings.showFps:
+        pygame.draw.lines(surface, settings.snakeColor, False, [(fps_box_rect.left + 5, fps_box_rect.centery), (fps_box_rect.centerx - 2, fps_box_rect.bottom - 5), (fps_box_rect.right - 5, fps_box_rect.top + 5)], 3)
+
+    # Debug Mode Toggle
     debug_label_surface = settings.scoreFont.render("Debug Mode:", True, settings.white)
-    debug_label_rect = debug_label_surface.get_rect(midright=(win_w / 2, debug_toggle_y))
+    debug_label_rect = debug_label_surface.get_rect(midright=(win_w / 2, toggle_y_start + 25))
     surface.blit(debug_label_surface, debug_label_rect)
 
     debug_box_rect = pygame.Rect(0, 0, 30, 30)
-    debug_box_rect.midleft = (win_w / 2 + 10, debug_toggle_y)
+    debug_box_rect.midleft = (win_w / 2 + 10, toggle_y_start + 25)
     debug_box_color = settings.white if debug_box_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, debug_box_color, debug_box_rect, 2, 3)
-
     if settings.debugMode:
-        # Draw a checkmark if debug mode is enabled
-        checkmark_points = [
-            (debug_box_rect.left + 5, debug_box_rect.centery),
-            (debug_box_rect.centerx - 2, debug_box_rect.bottom - 5),
-            (debug_box_rect.right - 5, debug_box_rect.top + 5)
-        ]
-        pygame.draw.lines(surface, settings.snakeColor, False, checkmark_points, 3)
+        pygame.draw.lines(surface, settings.snakeColor, False, [(debug_box_rect.left + 5, debug_box_rect.centery), (debug_box_rect.centerx - 2, debug_box_rect.bottom - 5), (debug_box_rect.right - 5, debug_box_rect.top + 5)], 3)
 
     # Save Button
     saveText = "Back to Menu"
@@ -198,6 +206,7 @@ def draw_settings_menu(surface, current_color_name):
         'save': save_rect, 
         'colorNameDisplay': color_name_rect, # This key is used in main.py
         'debug_toggle': debug_box_rect,
+        'fps_toggle': fps_box_rect,
         'debug_menu': debug_menu_rect # Now safe to return directly
     }
 
@@ -460,7 +469,7 @@ def draw_debug_settings_menu(surface, temp_debug_settings):
 
     # Draw visibility toggles on the left
     vis_y = y_pos
-    for key in [k for k in temp_debug_settings.keys() if k.startswith('show')]:
+    for key in sorted([k for k in temp_debug_settings.keys() if k.startswith('show')]):
         label_surf = settings.smallFont.render(key[4:] + ":", True, settings.white) # "showState" -> "State:"
         surface.blit(label_surf, label_surf.get_rect(midright=(win_w / 4 - 10, vis_y)))
 
