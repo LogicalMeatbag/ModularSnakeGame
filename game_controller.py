@@ -56,13 +56,15 @@ class GameController:
             # Apply effects based on food type
             if eaten_food['type'] == 'normal':
                 self.score += 1
-                self.normalSpeed += 1 # Increase the base speed
             elif eaten_food['type'] == 'golden':
                 self.score += settings.goldenFoodScore
             # elif eaten_food['type'] == 'speed':
             #     self.score += settings.speedFoodScore
             #     self.speed += 5 # e.g., temporary speed boost
             
+            # Speed now increases based on score, which is a more balanced progression.
+            self.normalSpeed = settings.startSpeed + (self.score // 5) # e.g., speed increases every 5 points
+
             # Only spawn a new normal apple when a normal apple is eaten.
             # This prevents the normal apple from respawning when a golden one is eaten, for instance.
             if eaten_food['type'] == 'normal':
@@ -70,9 +72,9 @@ class GameController:
                     chance = settings.debugSettings['goldenAppleChanceOverride'] if settings.debugMode else settings.goldenFoodChance
                     self.food.spawn_new_food(self.snake.get_body(), chance)
         else:
-            # Only adjust speed if no speed-modifying event is active.
-            if not self.is_speed_event_active():
-                self.speed = self.normalSpeed
+            # If no food was eaten, and no speed event is active, ensure speed matches normalSpeed.
+            if not self.is_speed_event_active(active_event):
+                self.speed = self.normalSpeed # This is the default behavior
             self.snake.move() # No food, so just move
 
         # Check for game-over collisions
@@ -147,13 +149,12 @@ class GameController:
         if not active_event: return False
         return active_event in ["Apples Galore", "Golden Apple Rain"]
 
-    def is_speed_event_active(self):
+    def is_speed_event_active(self, active_event):
         """
         Helper to check if a speed-modifying event is active.
-        This is a bit of a hack; a more robust system would use an event state object.
-        For now, we can infer it by comparing current speed to normal speed.
+        This is now done by explicitly checking the active event name.
         """
-        return self.speed != self.normalSpeed
+        return active_event in ["Racecar Snake", "Slow Snake"]
             
     def draw(self, surface):
         """Draws all active game elements."""

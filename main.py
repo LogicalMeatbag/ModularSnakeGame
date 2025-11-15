@@ -132,16 +132,16 @@ def main():
     # The game controller manages the actual game session
     game = GameController()
 
-    # --- [FIX] Define start_new_game inside main() to give it access to the correct scope ---
     def start_new_game():
         """Resets all game-specific state to start a fresh game."""
-        nonlocal active_event, event_timer, notification_end_time, countdown_seconds_left, time_since_last_move
+        nonlocal active_event, last_event, event_timer, notification_end_time, countdown_seconds_left, time_since_last_move
         
         # Reset the core game controller (snake, food, score, speed)
         game.reset()
         
         # Reset all event-related variables to their initial states
         active_event = None
+        last_event = None
         event_timer = 0
         notification_end_time = 0
         countdown_seconds_left = 0
@@ -184,6 +184,7 @@ def main():
         "Small Snake", "Racecar Snake", "Slow Snake"
     ]
     active_event = None
+    last_event = None # Store the previously completed event
     event_start_time = 0
     event_timer = 0 # Counts up to trigger a new event
     notification_end_time = 0 # For showing the event name text
@@ -495,6 +496,7 @@ def main():
             # 1. Check if an active event has expired
             if active_event and current_time > event_start_time + settings.EVENT_DURATION:
                 game.stop_event(active_event)
+                last_event = active_event # Remember which event just ended
                 active_event = None
 
             # 2. If no event is active, count up the main event timer.
@@ -537,7 +539,14 @@ def main():
             if time_since_start >= settings.EVENT_COUNTDOWN_DURATION:
                 # Countdown finished! Trigger the actual event.
                 current_state = GameState.PLAYING
-                active_event = random.choice(event_list)
+                
+                # Create a list of possible events, excluding the last one.
+                possible_events = [e for e in event_list if e != last_event]
+                # If the list is somehow empty (e.g., only one event exists), fall back to the full list.
+                if not possible_events:
+                    possible_events = event_list
+
+                active_event = random.choice(possible_events)
                 game.start_event(active_event)
                 event_start_time = pygame.time.get_ticks() # Reset timer for the event's duration
                 notification_end_time = event_start_time + settings.EVENT_NOTIFICATION_DURATION
