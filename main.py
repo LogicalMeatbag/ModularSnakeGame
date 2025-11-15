@@ -5,12 +5,14 @@ main.py
 - It initializes the game and contains the main game loop.
 - It manages the overall game state (MainMenu, Playing, GameOver).
 """
+from settings import gameTitle # so we can print it before running the main.py code
+print(f'Starting {gameTitle}... (Python {sys.version_info.major}.{sys.version_info.minor})')
 import sys
 import os
 import error_handler
-from settings import gameTitle # so we can print it before running the main.py code
 
-print(f'Starting {gameTitle}... (Python {sys.version_info.major}.{sys.version_info.minor})')
+
+
 # This will catch any error that isn't explicitly handled elsewhere
 # and display it in a user-friendly GUI window before the program
 # terminates. This is our safety net for all unanticipated errors.
