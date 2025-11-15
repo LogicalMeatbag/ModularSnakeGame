@@ -82,6 +82,12 @@ class GameController:
         # for obstacle in self.obstacles.items:
         #     if self.snake.get_head_pos() == obstacle['pos']:
         #         settings.obstacleHitSound.play()
+        
+        # --- [TEMPLATE] How to add ongoing event logic ---
+        # if active_event == "My New Event":
+        #     # This code will run every game tick while the event is active.
+        #     # For example, you could slowly drain the player's score.
+        #     self.score = max(0, self.score - 0.01)
 
         return False # Game continues
         
@@ -109,6 +115,13 @@ class GameController:
             self.speed = self.normalSpeed + settings.RACECAR_SNAKE_SPEED_BOOST
         elif event_name == "Slow Snake":
             self.speed = max(5, self.normalSpeed - settings.SLOW_SNAKE_SPEED_REDUCTION)
+        
+        # --- [TEMPLATE] How to add a new event ---
+        # 1. Add the name to `event_list` in main.py.
+        # 2. Add constants to `settings.py` (e.g., MY_NEW_EVENT_VALUE = 5).
+        # 3. Add the logic here.
+        # elif event_name == "My New Event":
+        #     self.score += settings.MY_NEW_EVENT_VALUE
 
     def stop_event(self, event_name):
         """Resets the effects of a timed event."""
@@ -122,6 +135,12 @@ class GameController:
         # For food events, clear all food and spawn one new normal apple.
         elif event_name in ["Apples Galore", "Golden Apple Rain"]:
             self.food.reset(self.snake.get_body())
+        
+        # --- [TEMPLATE] How to revert a temporary event ---
+        # 1. Add the event name to the `if` check in main.py to show the revert countdown.
+        # 2. Add the cleanup logic here.
+        # elif event_name == "My New Temporary Event":
+        #     # Revert any changes made when the event started.
 
     def is_food_event_active(self, active_event):
         """Helper to check if a food-spawning event is active."""

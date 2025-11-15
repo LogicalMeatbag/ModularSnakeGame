@@ -15,6 +15,7 @@ class Snake:
         self.last_block_size = -1 # Force a rescale on the first draw
         self.pre_event_length = 0
         self.is_size_event_active = False
+        self.growth_during_event = 0
 
 
     def reset(self):
@@ -31,6 +32,7 @@ class Snake:
         # Reset event state
         self.pre_event_length = 0
         self.is_size_event_active = False
+        self.growth_during_event = 0
 
     def change_direction(self, event_key):
         """Updates the snake's target direction based on key presses."""
@@ -62,10 +64,8 @@ class Snake:
 
     def grow(self):
         """Grows the snake by not removing the tail segment. This is called when food is eaten."""
-        # In our new logic, we simply do nothing here, as the head has already been added.
-        # If a size event is active, we need to update the target length
         if self.is_size_event_active:
-            self.pre_event_length += 1
+            self.growth_during_event += 1
         pass
 
     def grow_by(self, amount):
@@ -90,9 +90,16 @@ class Snake:
 
     def revert_size(self):
         """Reverts the snake's size to its pre-event length."""
+        # Calculate the final target length: the length before the event, plus any growth during it.
+        target_length = self.pre_event_length + self.growth_during_event
         current_length = len(self.body)
-        if current_length > self.pre_event_length:
-            self.body = self.body[:self.pre_event_length]
+
+        if current_length > target_length:
+            # If we are longer than the target (e.g., BEEEG event), shrink to target.
+            self.body = self.body[:target_length]
+        elif current_length < target_length:
+            # If we are shorter (e.g., Small event), grow to target.
+            self.grow_by(target_length - current_length)
     
     def move(self):
         """Moves the snake by removing the tail segment (when no food is eaten)."""
