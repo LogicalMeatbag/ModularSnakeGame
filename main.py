@@ -493,11 +493,20 @@ def main():
 
             current_time = pygame.time.get_ticks()
 
-            # 1. Check if an active event has expired
-            if active_event and current_time > event_start_time + settings.EVENT_DURATION:
-                game.stop_event(active_event)
-                last_event = active_event # Remember which event just ended
-                active_event = None
+            # 1. Check if an active event has expired. This logic is now more complex.
+            if active_event:
+                is_food_event = game.is_food_event_active(active_event)
+
+                # Condition for timed events (e.g., BEEEG Snake, Racecar Snake)
+                if not is_food_event and current_time > event_start_time + settings.EVENT_DURATION:
+                    game.stop_event(active_event)
+                    last_event = active_event
+                    active_event = None
+                # Condition for objective-based events (e.g., Apples Galore)
+                elif is_food_event and not game.food.items:
+                    game.stop_event(active_event)
+                    last_event = active_event
+                    active_event = None
 
             # 2. If no event is active, count up the main event timer.
             if not active_event and current_state != GameState.EVENT_COUNTDOWN:
