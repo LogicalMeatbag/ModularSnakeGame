@@ -516,7 +516,7 @@ def main():
                     ui.draw_event_notification(settings.window, active_event)
             
             # Draw revert countdown separately from the notification to ensure it lasts for the full event duration.
-            if active_event in ["BEEEG Snake", "Small Snake"]:
+            if active_event in ["BEEEG Snake", "Small Snake", "Racecar Snake", "Slow Snake"]:
                 time_left = (event_start_time + settings.EVENT_DURATION - current_time) / 1000
                 if time_left > 0:
                     ui.draw_revert_countdown(settings.window, int(time_left) + 1)
