@@ -6,12 +6,11 @@ main.py
 - It manages the overall game state (MainMenu, Playing, GameOver).
 """
 from settings import gameTitle # so we can print it before running the main.py code
-print(f'Starting {gameTitle}... (Python {sys.version_info.major}.{sys.version_info.minor})')
 import sys
 import os
 import error_handler
 
-
+print(f'Starting {gameTitle}... (Python {sys.version_info.major}.{sys.version_info.minor})')
 
 # This will catch any error that isn't explicitly handled elsewhere
 # and display it in a user-friendly GUI window before the program
