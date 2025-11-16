@@ -103,6 +103,7 @@ def draw_main_menu(surface):
 def draw_settings_menu(surface, current_color_name):
     """Draws the settings menu screen and returns button rects."""
     win_w, win_h = surface.get_size()
+    buttons = {} # Initialize the buttons dictionary
     mouse_pos = pygame.mouse.get_pos()
 
     # Title
@@ -121,42 +122,71 @@ def draw_settings_menu(surface, current_color_name):
     # Left Arrow
     arrow_offset = settings.snakeImages['head'].get_width() * 1.5 + 40 # 1.5 blocks for half the snake, plus 40px padding
     left_arrow_rect = pygame.Rect(0, 0, 50, 50)
-    left_arrow_rect.center = (win_w / 2 - arrow_offset, win_h * 0.5)
+    left_arrow_rect.center = (win_w / 2 - arrow_offset, win_h * 0.48)
     left_arrow_color = settings.white if left_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
     left_arrow_surf = settings.scoreFont.render("<", True, left_arrow_color)
     surface.blit(left_arrow_surf, left_arrow_surf.get_rect(center=left_arrow_rect.center))
+    buttons['left'] = left_arrow_rect
 
     # Right Arrow
     right_arrow_rect = pygame.Rect(0, 0, 50, 50)
-    right_arrow_rect.center = (win_w / 2 + arrow_offset, win_h * 0.5)
+    right_arrow_rect.center = (win_w / 2 + arrow_offset, win_h * 0.48)
     right_arrow_color = settings.white if right_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
     right_arrow_surf = settings.scoreFont.render(">", True, right_arrow_color)
     surface.blit(right_arrow_surf, right_arrow_surf.get_rect(center=right_arrow_rect.center))
+    buttons['right'] = right_arrow_rect
 
-    # Debug Settings Button (only shows if debug mode is on)
-    debug_menu_rect = pygame.Rect(0, 0, 0, 0) # Initialize with a default empty rect
+    # --- Dynamic Vertical Layout ---
+    # Start the layout below the snake preview. The preview is at 50% height,
+    # and the scaled sprites are used for an accurate height calculation.
+    y_pos = win_h * 0.5 + (settings.snakeImages['head'].get_height() * 2) / 2 + 20
+
+    # 1. Draw the Color Name
+    color_name_surface = settings.scoreFont.render(current_color_name, True, settings.snakeColor)
+    color_name_rect = color_name_surface.get_rect(center=(win_w / 2, y_pos))
+    surface.blit(color_name_surface, color_name_rect)
+    y_pos += 40 # Add spacing for the next element
+
+    # 2. Conditionally draw the "Customize" button
+    if current_color_name == "Custom":
+        customize_text = "Customize"
+        customize_surf = settings.smallFont.render(customize_text, True, settings.white)
+        customize_rect = pygame.Rect(0, 0, customize_surf.get_width() + 30, 40)
+        customize_rect.center = (win_w / 2, y_pos)
+        customize_color = settings.white if customize_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        pygame.draw.rect(surface, customize_color, customize_rect, 2, 5)
+        customize_surf = settings.smallFont.render(customize_text, True, customize_color)
+        surface.blit(customize_surf, customize_surf.get_rect(center=customize_rect.center))
+        buttons['customize_button'] = customize_rect
+        y_pos += 50 # Add spacing for the next element
+
+    # 3. Conditionally draw the "Debug Settings" button
     if settings.debugMode:
-        debugMenuText = "Debug Settings"
-        debugMenuSurface = settings.smallFont.render(debugMenuText, True, settings.white)
-        debug_menu_rect = pygame.Rect(0, 0, debugMenuSurface.get_width() + 20, 40)
-        debug_menu_rect.center = (win_w / 2, win_h * 0.6)
-        debugMenuColor = settings.white if debug_menu_rect.collidepoint(mouse_pos) else settings.uiElementColor
-        pygame.draw.rect(surface, debugMenuColor, debug_menu_rect, 2, 5)
-        debugMenuSurface = settings.smallFont.render(debugMenuText, True, debugMenuColor)
-        surface.blit(debugMenuSurface, debugMenuSurface.get_rect(center=debug_menu_rect.center))
+        debug_text = "Debug Settings"
+        debug_surf = settings.smallFont.render(debug_text, True, settings.white)
+        debug_rect = pygame.Rect(0, 0, debug_surf.get_width() + 20, 40)
+        debug_rect.center = (win_w / 2, y_pos)
+        debug_color = settings.white if debug_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        pygame.draw.rect(surface, debug_color, debug_rect, 2, 5)
+        debug_surf = settings.smallFont.render(debug_text, True, debug_color)
+        surface.blit(debug_surf, debug_surf.get_rect(center=debug_rect.center))
+        buttons['debug_menu'] = debug_rect
+    else:
+        buttons['debug_menu'] = pygame.Rect(0,0,0,0) # Ensure key exists
 
     # Keybinds Button
     keybindsText = "Configure Controls"
     keybindsSurface = settings.scoreFont.render(keybindsText, True, settings.white) # Render once to get size
     keybinds_rect = pygame.Rect(0, 0, keybindsSurface.get_width() + 40, 50) # Add 20px padding on each side
-    keybinds_rect.center = (win_w / 2, win_h * 0.7)
+    keybinds_rect.center = (win_w / 2, win_h * 0.75) # Repositioned lower
     keybindsColor = settings.white if keybinds_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, keybindsColor, keybinds_rect, 2, 5)
     keybindsSurface = settings.scoreFont.render(keybindsText, True, keybindsColor) # Re-render with hover color
     surface.blit(keybindsSurface, keybindsSurface.get_rect(center=keybinds_rect.center))
+    buttons['keybinds'] = keybinds_rect
 
     # --- Toggles Section ---
-    toggle_y_start = win_h * 0.78
+    toggle_y_start = win_h * 0.83 # Repositioned lower
     
     # FPS Toggle
     fps_label_surface = settings.scoreFont.render("Show FPS:", True, settings.white)
@@ -169,6 +199,7 @@ def draw_settings_menu(surface, current_color_name):
     pygame.draw.rect(surface, fps_box_color, fps_box_rect, 2, 3)
     if settings.showFps:
         pygame.draw.lines(surface, settings.snakeColor, False, [(fps_box_rect.left + 5, fps_box_rect.centery), (fps_box_rect.centerx - 2, fps_box_rect.bottom - 5), (fps_box_rect.right - 5, fps_box_rect.top + 5)], 3)
+    buttons['fps_toggle'] = fps_box_rect
 
     # Debug Mode Toggle
     debug_label_surface = settings.scoreFont.render("Debug Mode:", True, settings.white)
@@ -181,34 +212,20 @@ def draw_settings_menu(surface, current_color_name):
     pygame.draw.rect(surface, debug_box_color, debug_box_rect, 2, 3)
     if settings.debugMode:
         pygame.draw.lines(surface, settings.snakeColor, False, [(debug_box_rect.left + 5, debug_box_rect.centery), (debug_box_rect.centerx - 2, debug_box_rect.bottom - 5), (debug_box_rect.right - 5, debug_box_rect.top + 5)], 3)
+    buttons['debug_toggle'] = debug_box_rect
 
     # Save Button
     saveText = "Back to Menu"
     saveSurface = settings.scoreFont.render(saveText, True, settings.white)
-    save_rect = pygame.Rect(0, 0, saveSurface.get_width() + 40, 50)
-    save_rect.center = (win_w / 2, win_h * 0.88) # Moved down slightly
+    save_rect = pygame.Rect(0, 0, saveSurface.get_width() + 40, 50) # Centered horizontally
+    save_rect.center = (win_w / 2, win_h * 0.92) # Positioned near the bottom
     saveColor = settings.white if save_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, saveColor, save_rect, 2, 5)
     saveSurface = settings.scoreFont.render(saveText, True, saveColor) # Re-render with hover color
     surface.blit(saveSurface, saveSurface.get_rect(center=save_rect.center))
+    buttons['save'] = save_rect
 
-    # Add padding to prevent text from overlapping with the snake preview
-    spriteHeight = settings.snakeImages['head'].get_height()
-    text_y_pos = win_h * 0.5 + (spriteHeight / 2) + 20 # Half sprite height + 20px padding
-    color_name_surface = settings.scoreFont.render(current_color_name, True, settings.snakeColor)
-    color_name_rect = color_name_surface.get_rect(center=(win_w / 2, text_y_pos))
-    surface.blit(color_name_surface, color_name_rect)
-
-    return {
-        'left': left_arrow_rect, 
-        'right': right_arrow_rect, 
-        'keybinds': keybinds_rect, 
-        'save': save_rect, 
-        'colorNameDisplay': color_name_rect, # This key is used in main.py
-        'debug_toggle': debug_box_rect,
-        'fps_toggle': fps_box_rect,
-        'debug_menu': debug_menu_rect # Now safe to return directly
-    }
+    return buttons
 
 def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
     """Draws the keybinding configuration screen."""

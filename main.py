@@ -229,7 +229,8 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
             settings.userSettings["snakeColorName"] = color_names[current_color_index]
             settings_manager.save_settings(settings.settingsFile, settings.userSettings)
             new_state = GameState.MAIN_MENU
-        elif color_names[current_color_index] == "Custom" and settings_buttons.get('colorNameDisplay') and settings_buttons['colorNameDisplay'].collidepoint(mouse_pos):
+        # [REFACTOR] Check for a dedicated 'customize' button instead of clicking the text.
+        elif settings_buttons.get('customize_button') and settings_buttons['customize_button'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
             new_state = GameState.CUSTOM_COLOR_SETTINGS
         elif settings.debugMode and settings_buttons.get('debug_menu') and settings_buttons['debug_menu'].collidepoint(mouse_pos):
