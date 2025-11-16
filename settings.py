@@ -209,14 +209,17 @@ LoadingMessagesSounds = [
 LoadingMessagesSnake = [
     "Stitching pixels together...", "Herding digital serpents...",
     "Untangling Python code...", "Applying googly eyes..."
+    "Painting the snakes..."
 ]
 LoadingMessagesFood = [
     "Polishing the apples...", "Checking for worms...",
-    "Debating apple nutritional value...", "Hiding golden apples..."
+    "Debating apple nutritional value...", "Hiding golden apples...",
+    "Buying apples...", "Crafting golden apples..."
 ]
 LoadingMessagesFonts = [
     "Perfecting pixel typography...", "Choosing the right font weight...",
-    "Making sure the 'S' is snake-like...", "Kerning the characters..."
+    "Making sure the 'S' is snake-like...", "Kerning the characters...",
+    "Writing the text...", "Participating in spelling bees..."
 ]
 LoadingMessagesDone = ["Ready to slither!", "Let the feast begin!", "Game loaded. Good luck!"]
 

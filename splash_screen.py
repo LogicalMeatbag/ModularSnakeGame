@@ -130,3 +130,19 @@ def show():
 
         pygame.display.update()
         settings.clock.tick(60) # Run at a steady 60 FPS
+
+if __name__ == "__main__":
+    import os
+    import sys
+    import subprocess
+    
+    # This block runs only when the script is executed directly.
+    # It finds and executes the main.py file.
+    print("This is a module file. Attempting to run the main game...")
+    
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    main_py_path = os.path.join(script_dir, 'main.py')
+    
+    # Run main.py using the same python interpreter, with the correct working directory
+    subprocess.Popen([sys.executable, main_py_path], cwd=script_dir)
