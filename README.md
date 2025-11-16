@@ -96,13 +96,13 @@ For more advanced changes, you can edit the `settings.py` file to modify:
 This project is set up to be easily bundled into a single executable using **PyInstaller**.
 
 1.  **Install PyInstaller:**
-    If you have multiple Python versions, it's best to specify the one you intend to build with.
+    If you have multiple Python versions, it's best to specify the one you intend to build with. You will also need `Pillow` for splash screen image processing.
     ```sh
     # On Windows, for a specific version (recommended)
-    py -3.14 -m pip install pyinstaller
+    py -3.14 -m pip install pyinstaller Pillow
 
     # On other systems, or for the default python version
-    python -m pip install pyinstaller
+    python -m pip install pyinstaller Pillow
     ```
 
 2.  **Run the PyInstaller command:**

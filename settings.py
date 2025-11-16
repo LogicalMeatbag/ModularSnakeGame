@@ -208,7 +208,7 @@ LoadingMessagesSounds = [
 ]
 LoadingMessagesSnake = [
     "Stitching pixels together...", "Herding digital serpents...",
-    "Untangling Python code...", "Applying googly eyes..."
+    "Untangling Python code...", "Applying googly eyes...",
     "Painting the snakes..."
 ]
 LoadingMessagesFood = [
