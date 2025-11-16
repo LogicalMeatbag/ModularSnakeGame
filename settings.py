@@ -3,6 +3,7 @@ import os
 import sys
 import error_handler
 import settings_manager
+import random
 
 # --- PYINSTALLER PATH FIX ---
 # This is the 'sys._MEIPASS' logic, which finds our assets (sounds, fonts)
@@ -102,6 +103,11 @@ EVENT_DURATION = 10 * 1000 # Most events last for 10 seconds
 EVENT_NOTIFICATION_DURATION = 3 * 1000 # "Apples Galore!" message shows for 3 seconds
 EVENT_COUNTDOWN_DURATION = 5 * 1000 # Start countdown 5 seconds before event can trigger
 
+# --- [NEW] Splash Screen Settings ---
+SPLASH_FADE_IN_DURATION = 1000  # 1 second to fade in
+SPLASH_STAY_DURATION = 1500     # 1.5 seconds to stay on screen
+SPLASH_FADE_OUT_DURATION = 500  # 0.5 seconds to fade out
+
 # --- [NEW] Death Animation Settings ---
 DEATH_ANIMATION_INITIAL_PAUSE = 250 # A brief pause before the animation starts.
 DEATH_ANIMATION_SEGMENT_FADE_DURATION = 500 # How long each individual segment takes to fade.
@@ -179,66 +185,105 @@ snakeTurnFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body
 snakeHeadLoseFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head_lose.png')
 
 appleFile = os.path.join(base_path, 'assets', 'images', 'food', 'apple.png') # Assumed path for the apple
+splashLogoFile = os.path.join(base_path, 'assets', 'images', 'splash_screen.png') # Path for the new splash logo
+fontFile = os.path.join(base_path, 'assets', 'fonts', 'PixelifySans-Regular.ttf') # Path for the new pixel font
 
-try:
-    eatSound = pygame.mixer.Sound(eatSoundFile)
-    gameOverSound = pygame.mixer.Sound(gameOverSoundFile)
-    buttonClickSound = pygame.mixer.Sound(buttonClickSoundFile)
-    buttonClickSound.set_volume(0.5) # Set volume to 50%
-except pygame.error as e:
-    errorMessage = (
-        f"Could not load a sound file.\n\nDetails: {e}\n\n"
-        "The game will run without sound, but please ensure the 'assets/sounds' folder is correct."
-    )
-    error_handler.show_error_message("Asset Warning", errorMessage)
-    # Create "dummy" sound objects
-    eatSound = pygame.mixer.Sound(buffer=b'') 
-    gameOverSound = pygame.mixer.Sound(buffer=b'')
-    buttonClickSound = pygame.mixer.Sound(buffer=b'')
+# --- DYNAMICALLY LOADED ASSETS ---
+# These are initialized to None and will be loaded by the load_assets function.
+eatSound = None
+gameOverSound = None
+buttonClickSound = None
+snakeImages = {}
+splashLogoImage = None
+foodImages = {}
+scoreFont = None
+titleFont = None
+smallFont = None
+debugFont = None
 
-# Load Snake Sprites in a separate block for better error handling
-try:
-    snakeImages = {
-        'head': pygame.image.load(snakeHeadFile).convert_alpha(),
-        'body': pygame.image.load(snakeBodyFile).convert_alpha(),
-        'tail': pygame.image.load(snakeTailFile).convert_alpha(),
-        'turn': pygame.image.load(snakeTurnFile).convert_alpha(),
-        'head_lose': pygame.image.load(snakeHeadLoseFile).convert_alpha(),
-    }
-except pygame.error as e:
-    errorMessage = (
-        f"A critical image file for the snake could not be loaded.\n\nDetails: {e}\n\n"
-        "Please ensure the 'assets/images/snake/' folder and all its contents are present."
-    )
-    error_handler.show_error_message("Fatal Asset Error", errorMessage, isFatal=True)
+# --- [NEW] Easter Egg Loading Messages ---
+LoadingMessagesSounds = [
+    "Calibrating audio synthesizers...", "Composing 8-bit symphonies...",
+    "Teaching snakes to hiss...", "Polishing the 'nom nom' sound..."
+]
+LoadingMessagesSnake = [
+    "Stitching pixels together...", "Herding digital serpents...",
+    "Untangling Python code...", "Applying googly eyes..."
+]
+LoadingMessagesFood = [
+    "Polishing the apples...", "Checking for worms...",
+    "Debating apple nutritional value...", "Hiding golden apples..."
+]
+LoadingMessagesFonts = [
+    "Perfecting pixel typography...", "Choosing the right font weight...",
+    "Making sure the 'S' is snake-like...", "Kerning the characters..."
+]
+LoadingMessagesDone = ["Ready to slither!", "Let the feast begin!", "Game loaded. Good luck!"]
 
-# Load Food Sprites
-try:
-    foodImages = {
-        'apple': pygame.image.load(appleFile).convert_alpha(),
-    }
-except pygame.error as e:
-    errorMessage = (
-        f"The image file for the food could not be loaded.\n\nDetails: {e}\n\n"
-        "Please ensure the 'assets/images/food/' folder and all its contents are present."
-    )
-    error_handler.show_error_message("Fatal Asset Error", errorMessage, isFatal=True)
+# --- ASSET LOADING FUNCTION ---
+def load_assets():
+    """
+    Loads all game assets in steps, yielding progress. This is a generator.
+    Each yield returns: (current_step, total_steps, message)
+    """
+    global eatSound, gameOverSound, buttonClickSound, snakeImages, splashLogoImage, foodImages
+    global scoreFont, titleFont, smallFont, debugFont
+    total_steps = 4
+    import time # Import the time module for adding delays
 
-try:
-    scoreFont = pygame.font.SysFont(None, 35)
-    titleFont = pygame.font.SysFont(None, 60)
-    smallFont = pygame.font.SysFont(None, 30)
-    debugFont = pygame.font.SysFont("monospace", 15)
-except Exception as e:
-    errorMessage = (
-        f"A system font could not be loaded.\n\nDetails: {e}\n\n"
-        "The game will continue with a default font."
-    )
-    error_handler.show_error_message("Font Warning", errorMessage)
-    scoreFont = pygame.font.Font(None, 35)
-    titleFont = pygame.font.Font(None, 60)
-    smallFont = pygame.font.Font(None, 30)
-    debugFont = pygame.font.Font(None, 18)
+    # Step 1: Load Sounds
+    yield (0, total_steps, random.choice(LoadingMessagesSounds))
+    try:
+        eatSound = pygame.mixer.Sound(eatSoundFile)
+        gameOverSound = pygame.mixer.Sound(gameOverSoundFile)
+        buttonClickSound = pygame.mixer.Sound(buttonClickSoundFile)
+        buttonClickSound.set_volume(0.5)
+    except pygame.error as e:
+        error_handler.show_error_message("Asset Warning", f"Could not load a sound file.\n\nDetails: {e}", isFatal=False)
+        eatSound, gameOverSound, buttonClickSound = pygame.mixer.Sound(buffer=b''), pygame.mixer.Sound(buffer=b''), pygame.mixer.Sound(buffer=b'')
+
+    # Step 2: Load Snake Images
+    yield (1, total_steps, random.choice(LoadingMessagesSnake))
+    # time.sleep(5)
+
+    try:
+        snakeImages = {
+            'head': pygame.image.load(snakeHeadFile).convert_alpha(),
+            'body': pygame.image.load(snakeBodyFile).convert_alpha(),
+            'tail': pygame.image.load(snakeTailFile).convert_alpha(),
+            'turn': pygame.image.load(snakeTurnFile).convert_alpha(),
+            'head_lose': pygame.image.load(snakeHeadLoseFile).convert_alpha(),
+        }
+    except pygame.error as e:
+        error_handler.show_error_message("Fatal Asset Error", f"A critical snake image could not be loaded.\n\nDetails: {e}", isFatal=True)
+
+    # Step 3: Load Food Images
+    yield (2, total_steps, random.choice(LoadingMessagesFood))
+    # time.sleep(0.3)
+
+    try:
+        foodImages = {'apple': pygame.image.load(appleFile).convert_alpha()}
+    except pygame.error as e:
+        error_handler.show_error_message("Fatal Asset Error", f"The food image could not be loaded.\n\nDetails: {e}", isFatal=True)
+
+    # Step 4: Load Fonts
+    yield (3, total_steps, random.choice(LoadingMessagesFonts))
+    # time.sleep(0.3)
+
+    try:
+        scoreFont = pygame.font.Font(fontFile, 35)
+        titleFont = pygame.font.Font(fontFile, 60)
+        smallFont = pygame.font.Font(fontFile, 30)
+        debugFont = pygame.font.Font(fontFile, 18)
+    except Exception as e:
+        error_handler.show_error_message("Font Warning", f"Custom font could not be loaded.\n\nDetails: {e}", isFatal=False)
+        scoreFont = pygame.font.Font(None, 35)
+        titleFont = pygame.font.Font(None, 60)
+        smallFont = pygame.font.Font(None, 30)
+        debugFont = pygame.font.Font(None, 18)
+    
+    yield (4, total_steps, random.choice(LoadingMessagesDone))
+
 
 if __name__ == "__main__":
     import os

@@ -56,6 +56,7 @@ import random
 import settings_manager
 import ui
 from game_controller import GameController
+import splash_screen # Import the new splash screen module
 import base64
 
 class GameState(Enum):
@@ -434,6 +435,10 @@ def main():
     # This prevents an UnboundLocalError on the first frame.
     menu_buttons = {}
     settings_buttons = {}
+
+    # --- [REFACTOR] Show Splash Screen which handles asset loading ---
+    splash_screen.show()
+
     keybind_buttons = {}
     custom_color_buttons = {}
     debug_settings_buttons = {}
