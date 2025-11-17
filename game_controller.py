@@ -81,11 +81,9 @@ class GameController:
                 if not self.is_food_event_active(active_event):
                     chance = settings.debugSettings['goldenAppleChanceOverride'] if settings.debugMode else settings.goldenFoodChance
                     self.food.spawn_new_food(self.snake.get_body(), chance)
-        else:
-            # If no food was eaten, and no speed event is active, ensure speed matches normalSpeed.
-            if not self.is_speed_event_active(active_event):
-                self.speed = self.normalSpeed # This is the default behavior
-            self.snake.move() # No food, so just move
+
+        # 5. Move the snake. The snake class itself now knows whether to pop its tail.
+        self.snake.move()
 
         return False # Game continues
         
@@ -97,22 +95,31 @@ class GameController:
 
     def start_event(self, event_name):
         """Applies the effects of a random event."""
+        # In strict mode, we access debugSettings directly, but only use the
+        # values if debugMode is True. This ensures type safety.
+
         if event_name == "Apples Galore":
-            self.food.spawn_galore('normal', settings.APPLES_GALORE_COUNT, self.snake.get_body())
+            count = settings.debugSettings['applesGaloreCountOverride'] if settings.debugMode else settings.APPLES_GALORE_COUNT
+            self.food.spawn_galore('normal', count, self.snake.get_body())
         elif event_name == "Golden Apple Rain":
-            self.food.spawn_galore('golden', settings.GOLDEN_APPLE_RAIN_COUNT, self.snake.get_body())
+            count = settings.debugSettings['goldenAppleRainCountOverride'] if settings.debugMode else settings.GOLDEN_APPLE_RAIN_COUNT
+            self.food.spawn_galore('golden', count, self.snake.get_body())
         elif event_name == "BEEEG Snake":
             self.snake.is_size_event_active = True
             self.snake.pre_event_length = len(self.snake.get_body())
-            self.snake.grow_by(settings.BEEG_SNAKE_GROWTH)
+            growth = settings.debugSettings['beegSnakeGrowthOverride'] if settings.debugMode else settings.BEEG_SNAKE_GROWTH
+            self.snake.grow_by(growth)
         elif event_name == "Small Snake":
             self.snake.is_size_event_active = True
             self.snake.pre_event_length = len(self.snake.get_body())
-            self.snake.shrink_by(settings.SMALL_SNAKE_SHRINK)
+            shrink = settings.debugSettings['smallSnakeShrinkOverride'] if settings.debugMode else settings.SMALL_SNAKE_SHRINK
+            self.snake.shrink_by(shrink)
         elif event_name == "Racecar Snake":
-            self.speed = self.normalSpeed + settings.RACECAR_SNAKE_SPEED_BOOST
+            boost = settings.debugSettings['racecarSpeedBoostOverride'] if settings.debugMode else settings.RACECAR_SNAKE_SPEED_BOOST
+            self.speed = self.normalSpeed + boost
         elif event_name == "Slow Snake":
-            self.speed = max(5, self.normalSpeed - settings.SLOW_SNAKE_SPEED_REDUCTION)
+            reduction = settings.debugSettings['slowSnakeSpeedReductionOverride'] if settings.debugMode else settings.SLOW_SNAKE_SPEED_REDUCTION
+            self.speed = max(5, self.normalSpeed - reduction)
         
         # --- [TEMPLATE] How to add a new event ---
         # 1. Add the name to `event_list` in main.py.
@@ -129,7 +136,8 @@ class GameController:
         elif event_name in ["BEEEG Snake", "Small Snake"]:
             self.snake.revert_size()
             self.snake.is_size_event_active = False
-            self.snake.pre_event_length = 0
+            self.snake.pre_event_length = 0 # Reset for the next event
+            self.snake.growth_during_event = 0 # [FIX] This was the missing piece
         # For food events, clear all food and spawn one new normal apple.
         elif event_name in ["Apples Galore", "Golden Apple Rain"]:
             self.food.reset(self.snake.get_body())
@@ -152,9 +160,9 @@ class GameController:
         """
         return active_event in ["Racecar Snake", "Slow Snake"]
             
-    def draw(self, surface, isDying=False, fadeProgress=None, staggerDelay=0.0):
+    def draw(self, surface, isDying=False, fadeProgress=None):
         """Draws all active game elements."""
-        self.snake.draw(surface, isDying, fadeProgress, staggerDelay)
+        self.snake.draw(surface, isDying, fadeProgress)
         self.food.draw(surface)
         # self.obstacles.draw(surface) # Example for new entities
         # We draw the score here because it's part of the 'playing' screen

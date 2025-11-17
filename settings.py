@@ -4,6 +4,7 @@ import sys
 import error_handler
 import settings_manager
 import random
+from typing import TypedDict, Any
 
 # --- PYINSTALLER PATH FIX ---
 # This is the 'sys._MEIPASS' logic, which finds our assets (sounds, fonts)
@@ -54,7 +55,11 @@ startSpeed = 15
 # pygame.RESIZABLE allows the user to change the window size.
 # pygame.DOUBLEBUF is recommended for smoother rendering.
 gameTitle = "ANAHKEN's Modular Snake Game"
-window = pygame.display.set_mode((initialWidth, initialHeight), pygame.RESIZABLE | pygame.DOUBLEBUF, vsync=1)
+# The window is initialized here, but will be re-initialized if vsync is toggled.
+# We need to load the vsync setting before this call.
+tempUserSettings = settings_manager.load_settings(settings_manager.get_settings_path(appDataFolder)) or {}
+initialVsync = tempUserSettings.get("vsync", True)
+window = pygame.display.set_mode((initialWidth, initialHeight), pygame.RESIZABLE | pygame.DOUBLEBUF, vsync=1 if initialVsync else 0)
 pygame.display.set_caption(gameTitle)
 
 # --- SET WINDOW ICON ---
@@ -78,7 +83,7 @@ backgroundColor = (0, 0, 0) # The play area background
 borderColor = (40, 40, 40) # The color of the letterbox border
 uiElementColor = (100, 100, 100)  # For UI elements like inactive buttons
 
-colorOptions = {
+colorOptions: dict[str, tuple[int, int, int]] = {
 # These are RGB color values for snake colors. 
     "Green": (0, 255, 0),
     "Blue": (0, 100, 255),
@@ -103,14 +108,13 @@ EVENT_DURATION = 10 * 1000 # Most events last for 10 seconds
 EVENT_NOTIFICATION_DURATION = 3 * 1000 # "Apples Galore!" message shows for 3 seconds
 EVENT_COUNTDOWN_DURATION = 5 * 1000 # Start countdown 5 seconds before event can trigger
 
-# --- [NEW] Splash Screen Settings ---
 SPLASH_FADE_IN_DURATION = 1000  # 1 second to fade in
 SPLASH_STAY_DURATION = 1500     # 1.5 seconds to stay on screen
 SPLASH_FADE_OUT_DURATION = 500  # 0.5 seconds to fade out
 
-# --- [NEW] Death Animation Settings ---
 DEATH_ANIMATION_INITIAL_PAUSE = 250 # A brief pause before the animation starts.
-DEATH_ANIMATION_SEGMENT_FADE_DURATION = 500 # How long each individual segment takes to fade.
+SNAKE_SIZE_ANIMATION_DURATION = 750 # How long the grow/shrink animation takes.
+DEATH_FADE_OUT_DURATION = 1000 # How long the entire snake takes to fade out.
 
 # Event-specific values
 APPLES_GALORE_COUNT = 15
@@ -120,9 +124,55 @@ SMALL_SNAKE_SHRINK = 5
 RACECAR_SNAKE_SPEED_BOOST = 15
 SLOW_SNAKE_SPEED_REDUCTION = 5
 
+# Used for weighted random selection. Higher numbers are more likely.
+DEFAULT_EVENT_WEIGHTS: dict[str, int] = {
+    "Apples Galore": 10, "Golden Apple Rain": 5, "BEEEG Snake": 10, 
+    "Small Snake": 10, "Racecar Snake": 8, "Slow Snake": 8
+}
+
+# --- [REFACTOR] Typed Dictionaries for Strict Type Safety ---
+# These classes define the exact "shape" of our settings dictionaries,
+# which resolves a host of strict-mode type errors.
+
+class DebugSettingsDict(TypedDict):
+    showState: bool
+    showSnakePos: bool
+    showSnakeLen: bool
+    showSpeed: bool
+    showNormalSpeed: bool
+    showEventTimer: bool
+    showActiveEvent: bool
+    showEventTimeLeft: bool
+    showSizeEventActive: bool
+    showPreEventLen: bool
+    eventChanceOverride: int
+    goldenAppleChanceOverride: int
+    eventTimerMaxOverride: int
+    eventDurationOverride: int
+    eventCountdownDurationOverride: int
+    applesGaloreCountOverride: int
+    goldenAppleRainCountOverride: int
+    beegSnakeGrowthOverride: int
+    smallSnakeShrinkOverride: int
+    racecarSpeedBoostOverride: int
+    slowSnakeSpeedReductionOverride: int
+    eventChancesOverride: dict[str, int]
+
+class UserSettingsDict(TypedDict):
+    snakeColorName: str
+    customColor: list[int]
+    keybinds: dict[str, list[int]]
+    debugMode: bool
+    rainbowModeUnlocked: bool
+    showFps: bool
+    vsync: bool
+    maxFps: int
+    debugSettings: DebugSettingsDict
+
 # --- DEFAULT SETTINGS DICTIONARY ---
-defaultSettings = {
+defaultSettings: UserSettingsDict = {
     "snakeColorName": "Green",
+    "customColor": list(colorOptions["Green"]),
     "keybinds": {
         'UP': [pygame.K_UP, pygame.K_w],
         'DOWN': [pygame.K_DOWN, pygame.K_s],
@@ -132,7 +182,9 @@ defaultSettings = {
     "debugMode": False,
     "rainbowModeUnlocked": False, # Easter Egg
     "showFps": False, # Moved from debugSettings
-    "debugSettings": {
+    "vsync": True,
+    "maxFps": 144,
+    "debugSettings": DebugSettingsDict({
         "showState": True,
         "showSnakePos": True,
         "showSnakeLen": True,
@@ -144,33 +196,57 @@ defaultSettings = {
         "showSizeEventActive": True,
         "showPreEventLen": True,
         "eventChanceOverride": 25,
-        "goldenAppleChanceOverride": 15
-    }
+        "goldenAppleChanceOverride": 15,
+        "eventTimerMaxOverride": 15, # In seconds
+        "eventDurationOverride": 10, # In seconds
+        "eventCountdownDurationOverride": 5, # In seconds
+        "applesGaloreCountOverride": 15,
+        "goldenAppleRainCountOverride": 10,
+        "beegSnakeGrowthOverride": 10,
+        "smallSnakeShrinkOverride": 5,
+        "racecarSpeedBoostOverride": 15, # The comma was missing on the line above this one
+        "slowSnakeSpeedReductionOverride": 5,
+        "eventChancesOverride": DEFAULT_EVENT_WEIGHTS.copy()
+    })
 }
 
 # --- LOAD SAVED SETTINGS ---
 settingsFile = settings_manager.get_settings_path(appDataFolder)
-userSettings = settings_manager.load_settings(settingsFile)
 
-if userSettings is None: userSettings = {} # Ensure userSettings is a dict
+def merge_settings(defaults, saved):
+    """
+    Recursively merges saved settings into the defaults. This ensures that
+    new settings keys (including nested ones) are always present.
+    """
+    merged = defaults.copy()
+    for key, value in saved.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = merge_settings(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+# Load saved settings, or use an empty dict as a fallback.
+savedUserSettings = settings_manager.load_settings(settingsFile) or {}
+
+# Merge the loaded settings into the defaults to create the final, complete settings object.
+# This ensures that any new settings added to defaultSettings are present.
+userSettings: UserSettingsDict = merge_settings(defaultSettings, savedUserSettings)
+debugSettings: DebugSettingsDict = userSettings["debugSettings"]
 
 # --- APPLY LOADED/DEFAULT SETTINGS ---
-savedColorName = userSettings.get("snakeColorName", defaultSettings["snakeColorName"])
+savedColorName = userSettings["snakeColorName"]
 
 if savedColorName == "Custom":
-    # If the saved name is "Custom", load the specific RGB value.
-    # Fallback to Green if the customColor value is somehow missing.
-    snakeColor = tuple(userSettings.get("customColor", colorOptions["Green"]))
+    snakeColor = tuple(userSettings["customColor"])
 else:
-    # Otherwise, load the color from the presets dictionary.
     snakeColor = colorOptions.get(savedColorName, colorOptions["Green"])
 
-keybinds = userSettings.get("keybinds", defaultSettings["keybinds"])
-debugMode = userSettings.get("debugMode", defaultSettings["debugMode"])
-rainbowModeUnlocked = userSettings.get("rainbowModeUnlocked", defaultSettings["rainbowModeUnlocked"])
-showFps = userSettings.get("showFps", defaultSettings["showFps"])
-debugSettings = userSettings.get("debugSettings", defaultSettings["debugSettings"])
-
+# Directly access the validated settings from the userSettings dictionary.
+keybinds, debugMode, rainbowModeUnlocked, showFps, vsync, maxFps = (
+    userSettings["keybinds"], userSettings["debugMode"], userSettings["rainbowModeUnlocked"],
+    userSettings["showFps"], userSettings["vsync"], userSettings["maxFps"]
+)
 
 # --- FILE PATHS ---
 eatSoundFile = os.path.join(base_path, 'assets', 'sounds', 'eat.wav')
@@ -187,6 +263,7 @@ snakeHeadLoseFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_
 appleFile = os.path.join(base_path, 'assets', 'images', 'food', 'apple.png') # Assumed path for the apple
 splashLogoFile = os.path.join(base_path, 'assets', 'images', 'splash_screen.png') # Path for the new splash logo
 fontFile = os.path.join(base_path, 'assets', 'fonts', 'PixelifySans-Regular.ttf') # Path for the new pixel font
+debugFontFile = os.path.join(base_path, 'assets', 'fonts', 'consola.ttf') # Path for the new debug font
 
 # --- DYNAMICALLY LOADED ASSETS ---
 # These are initialized to None and will be loaded by the load_assets function.
@@ -200,8 +277,8 @@ scoreFont = None
 titleFont = None
 smallFont = None
 debugFont = None
+debugMenuFont = None
 
-# --- [NEW] Easter Egg Loading Messages ---
 LoadingMessagesSounds = [
     "Calibrating audio synthesizers...", "Composing 8-bit symphonies...",
     "Teaching snakes to hiss...", "Polishing the 'nom nom' sound..."
@@ -229,7 +306,7 @@ def load_assets():
     Loads all game assets in steps, yielding progress. This is a generator.
     Each yield returns: (current_step, total_steps, message)
     """
-    global eatSound, gameOverSound, buttonClickSound, snakeImages, splashLogoImage, foodImages
+    global eatSound, gameOverSound, buttonClickSound, snakeImages, splashLogoImage, foodImages, debugMenuFont
     global scoreFont, titleFont, smallFont, debugFont
     total_steps = 4
     import time # Import the time module for adding delays
@@ -277,13 +354,15 @@ def load_assets():
         scoreFont = pygame.font.Font(fontFile, 35)
         titleFont = pygame.font.Font(fontFile, 60)
         smallFont = pygame.font.Font(fontFile, 30)
-        debugFont = pygame.font.Font(fontFile, 18)
+        debugFont = pygame.font.Font(debugFontFile, 18) # Use Consolas for the overlay
+        debugMenuFont = pygame.font.Font(debugFontFile, 24) # Use a larger Consolas for the menu
     except Exception as e:
         error_handler.show_error_message("Font Warning", f"Custom font could not be loaded.\n\nDetails: {e}", isFatal=False)
         scoreFont = pygame.font.Font(None, 35)
         titleFont = pygame.font.Font(None, 60)
         smallFont = pygame.font.Font(None, 30)
         debugFont = pygame.font.Font(None, 18)
+        debugMenuFont = pygame.font.Font(None, 24)
     
     yield (4, total_steps, random.choice(LoadingMessagesDone))
 

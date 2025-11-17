@@ -6,6 +6,7 @@ ui.py
 """
 import pygame
 import settings
+import textwrap
 
 def tint_surface(surface, color):
     """
@@ -19,13 +20,11 @@ def tint_surface(surface, color):
     colored_surface.blit(surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     return colored_surface
 
-def _draw_snake_preview(surface, y_pos, color):
+def _draw_snake_preview(surface, x_pos, y_pos, color):
     """
-    Internal helper to draw a centered, right-facing 3-segment snake preview.
+    Internal helper to draw a right-facing 3-segment snake preview at a given center point.
     """
-    win_w, _ = surface.get_size()
-    preview_center_x = win_w / 2
-    
+    preview_center_x = x_pos
     scale_factor = 2
     original_head = settings.snakeImages['head']
     original_body = settings.snakeImages['body']
@@ -51,6 +50,43 @@ def _draw_snake_preview(surface, y_pos, color):
     surface.blit(tinted_body, tinted_body.get_rect(center=(preview_center_x, y_pos)))
     surface.blit(tinted_head, tinted_head.get_rect(center=(preview_center_x + body.get_width(), y_pos)))
     surface.blit(tinted_tail, tinted_tail.get_rect(center=(preview_center_x - body.get_width(), y_pos)))
+
+def _draw_wrapped_text(surface, text, font, color, max_width, center_pos, right_align=False):
+    """
+    Internal helper to draw text that wraps if it exceeds max_width.
+    Aligns the text block to the given center_pos.
+    If right_align is True, it aligns the right edge of the text to center_pos.
+    """
+    if not text: return 0
+    
+    # Instead of estimating, we build lines word-by-word and measure their actual pixel width.
+    words = text.split(' ')
+    lines = []
+    current_line = ""
+
+    for word in words:
+        # Check if adding the new word exceeds the max width
+        test_line = current_line + " " + word if current_line else word
+        if font.size(test_line)[0] <= max_width:
+            current_line = test_line
+        else:
+            # The line is too long, so finalize the current line and start a new one
+            lines.append(current_line)
+            current_line = word
+    lines.append(current_line) # Add the last line
+
+    total_height = len(lines) * font.get_height()
+    start_y = center_pos[1] - total_height // 2
+
+    for i, line in enumerate(lines):
+        line_surface = font.render(line, True, color)
+        if right_align:
+            line_rect = line_surface.get_rect(midright=(center_pos[0], start_y + i * font.get_height() + font.get_height() // 2))
+        else:
+            line_rect = line_surface.get_rect(center=(center_pos[0], start_y + i * font.get_height() + font.get_height() // 2))
+        surface.blit(line_surface, line_rect)
+    
+    return total_height
 
 def draw_score(surface, score, high_score):
     """Draws the current score and high score."""
@@ -111,114 +147,143 @@ def draw_settings_menu(surface, current_color_name):
     title_rect = title_surface.get_rect(center=(win_w / 2, win_h * 0.2))
     surface.blit(title_surface, title_rect)
 
-    # Color option label
-    color_label_surface = settings.scoreFont.render("Snake Color", True, settings.white)
-    color_label_rect = color_label_surface.get_rect(center=(win_w / 2, win_h * 0.4))
-    surface.blit(color_label_surface, color_label_rect)
+    # --- Column Definitions ---
+    col1_x = win_w * 0.22
+    col2_x = win_w * 0.50
+    col3_x = win_w * 0.78
+    y_start = win_h * 0.30
+    column_width = win_w * 0.24 # Approx width for each column
 
-    _draw_snake_preview(surface, win_h * 0.5, settings.snakeColor)
+    # --- Column 1: Appearance ---
+    title_height = _draw_wrapped_text(surface, "Appearance", settings.scoreFont, settings.white,
+                       column_width, (col1_x, y_start))
 
-    # --- Color Selector ---
-    # Left Arrow
-    arrow_offset = settings.snakeImages['head'].get_width() * 1.5 + 40 # 1.5 blocks for half the snake, plus 40px padding
-    left_arrow_rect = pygame.Rect(0, 0, 50, 50)
-    left_arrow_rect.center = (win_w / 2 - arrow_offset, win_h * 0.48)
+    y_pos = y_start + title_height / 2 + 80 # Lower the preview slightly for better balance
+    _draw_snake_preview(surface, col1_x, (y_pos + 45), settings.snakeColor)
+    
+    y_pos += 80 # Add a bit more space between the preview and the selector
+    color_name_surface = settings.scoreFont.render(current_color_name, True, settings.snakeColor)
+    surface.blit(color_name_surface, color_name_surface.get_rect(center=(col1_x, y_pos)))
+
+    arrow_offset = 100
+    left_arrow_rect = pygame.Rect(0, 0, 50, 50); left_arrow_rect.center = (col1_x - arrow_offset, y_pos - 30)
     left_arrow_color = settings.white if left_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    left_arrow_surf = settings.scoreFont.render("<", True, left_arrow_color)
-    surface.blit(left_arrow_surf, left_arrow_surf.get_rect(center=left_arrow_rect.center))
+    surface.blit(settings.scoreFont.render("<", True, left_arrow_color), settings.scoreFont.render("<", True, left_arrow_color).get_rect(center=left_arrow_rect.center))
     buttons['left'] = left_arrow_rect
 
-    # Right Arrow
-    right_arrow_rect = pygame.Rect(0, 0, 50, 50)
-    right_arrow_rect.center = (win_w / 2 + arrow_offset, win_h * 0.48)
+    right_arrow_rect = pygame.Rect(0, 0, 50, 50); right_arrow_rect.center = (col1_x + arrow_offset, y_pos - 30)
     right_arrow_color = settings.white if right_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    right_arrow_surf = settings.scoreFont.render(">", True, right_arrow_color)
-    surface.blit(right_arrow_surf, right_arrow_surf.get_rect(center=right_arrow_rect.center))
+    surface.blit(settings.scoreFont.render(">", True, right_arrow_color), settings.scoreFont.render(">", True, right_arrow_color).get_rect(center=right_arrow_rect.center))
     buttons['right'] = right_arrow_rect
 
-    # --- Dynamic Vertical Layout ---
-    # Start the layout below the snake preview. The preview is at 50% height,
-    # and the scaled sprites are used for an accurate height calculation.
-    y_pos = win_h * 0.5 + (settings.snakeImages['head'].get_height() * 2) / 2 + 20
-
-    # 1. Draw the Color Name
-    color_name_surface = settings.scoreFont.render(current_color_name, True, settings.snakeColor)
-    color_name_rect = color_name_surface.get_rect(center=(win_w / 2, y_pos))
-    surface.blit(color_name_surface, color_name_rect)
-    y_pos += 40 # Add spacing for the next element
-
-    # 2. Conditionally draw the "Customize" button
+    y_pos += 80 # Match the spacing above
     if current_color_name == "Custom":
         customize_text = "Customize"
         customize_surf = settings.smallFont.render(customize_text, True, settings.white)
         customize_rect = pygame.Rect(0, 0, customize_surf.get_width() + 30, 40)
-        customize_rect.center = (win_w / 2, y_pos)
+        customize_rect.center = (col1_x, y_pos)
         customize_color = settings.white if customize_rect.collidepoint(mouse_pos) else settings.uiElementColor
         pygame.draw.rect(surface, customize_color, customize_rect, 2, 5)
         customize_surf = settings.smallFont.render(customize_text, True, customize_color)
         surface.blit(customize_surf, customize_surf.get_rect(center=customize_rect.center))
         buttons['customize_button'] = customize_rect
-        y_pos += 50 # Add spacing for the next element
 
-    # 3. Conditionally draw the "Debug Settings" button
-    if settings.debugMode:
-        debug_text = "Debug Settings"
-        debug_surf = settings.smallFont.render(debug_text, True, settings.white)
-        debug_rect = pygame.Rect(0, 0, debug_surf.get_width() + 20, 40)
-        debug_rect.center = (win_w / 2, y_pos)
-        debug_color = settings.white if debug_rect.collidepoint(mouse_pos) else settings.uiElementColor
-        pygame.draw.rect(surface, debug_color, debug_rect, 2, 5)
-        debug_surf = settings.smallFont.render(debug_text, True, debug_color)
-        surface.blit(debug_surf, debug_surf.get_rect(center=debug_rect.center))
-        buttons['debug_menu'] = debug_rect
-    else:
-        buttons['debug_menu'] = pygame.Rect(0,0,0,0) # Ensure key exists
+    # --- Column 2: Performance ---
+    title_height = _draw_wrapped_text(surface, "Performance", settings.scoreFont, settings.white,
+                       column_width, (col2_x, y_start))
 
-    # Keybinds Button
-    keybindsText = "Configure Controls"
-    keybindsSurface = settings.scoreFont.render(keybindsText, True, settings.white) # Render once to get size
-    keybinds_rect = pygame.Rect(0, 0, keybindsSurface.get_width() + 40, 50) # Add 20px padding on each side
-    keybinds_rect.center = (win_w / 2, win_h * 0.75) # Repositioned lower
-    keybindsColor = settings.white if keybinds_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    pygame.draw.rect(surface, keybindsColor, keybinds_rect, 2, 5)
-    keybindsSurface = settings.scoreFont.render(keybindsText, True, keybindsColor) # Re-render with hover color
-    surface.blit(keybindsSurface, keybindsSurface.get_rect(center=keybinds_rect.center))
-    buttons['keybinds'] = keybinds_rect
+    y_pos = y_start + title_height / 2 + 60 # Position content relative to the title's bottom edge
+    label_height = _draw_wrapped_text(surface, "V-Sync:", settings.scoreFont, settings.white,
+                       column_width / 2, (col2_x - 10, y_pos), right_align=True)
 
-    # --- Toggles Section ---
-    toggle_y_start = win_h * 0.83 # Repositioned lower
-    
-    # FPS Toggle
-    fps_label_surface = settings.scoreFont.render("Show FPS:", True, settings.white)
-    fps_label_rect = fps_label_surface.get_rect(midright=(win_w / 2, toggle_y_start - 25))
-    surface.blit(fps_label_surface, fps_label_rect)
+    vsync_box_rect = pygame.Rect(0, 0, 30, 30); vsync_box_rect.midleft = (col2_x + 10, y_pos)
+    vsync_box_color = settings.white if vsync_box_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    pygame.draw.rect(surface, vsync_box_color, vsync_box_rect, 2, 3)
+    if settings.vsync:
+        pygame.draw.lines(surface, settings.snakeColor, False, [(vsync_box_rect.left + 5, vsync_box_rect.centery), (vsync_box_rect.centerx - 2, vsync_box_rect.bottom - 5), (vsync_box_rect.right - 5, vsync_box_rect.top + 5)], 3)
+    buttons['vsync_toggle'] = vsync_box_rect
 
-    fps_box_rect = pygame.Rect(0, 0, 30, 30)
-    fps_box_rect.midleft = (win_w / 2 + 10, toggle_y_start - 25)
+    y_pos += max(label_height, 30) + 30 # Increased spacing
+    fps_limit_color = settings.white if not settings.vsync else settings.uiElementColor
+    label_height = _draw_wrapped_text(surface, "Framerate Limit:", settings.scoreFont, fps_limit_color,
+                       column_width / 2, (col2_x - 10, y_pos), right_align=True)
+
+    dec_rect = pygame.Rect(0, 0, 40, 30); dec_rect.midleft = (col2_x + 10, y_pos)
+    dec_color = settings.white if dec_rect.collidepoint(mouse_pos) and not settings.vsync else settings.uiElementColor
+    pygame.draw.rect(surface, dec_color, dec_rect, 2, 3)
+    surface.blit(settings.smallFont.render("-", True, dec_color), settings.smallFont.render("-", True, dec_color).get_rect(center=dec_rect.center))
+    buttons['dec_fps'] = dec_rect
+
+    val_surf = settings.smallFont.render(str(settings.maxFps), True, fps_limit_color)
+    surface.blit(val_surf, val_surf.get_rect(center=(dec_rect.right + 40, y_pos)))
+
+    inc_rect = pygame.Rect(0, 0, 40, 30); inc_rect.midleft = (dec_rect.right + 80, y_pos)
+    inc_color = settings.white if inc_rect.collidepoint(mouse_pos) and not settings.vsync else settings.uiElementColor
+    pygame.draw.rect(surface, inc_color, inc_rect, 2, 3)
+    surface.blit(settings.smallFont.render("+", True, inc_color), settings.smallFont.render("+", True, inc_color).get_rect(center=inc_rect.center))
+    buttons['inc_fps'] = inc_rect
+
+    y_pos += max(label_height, 30) + 30 # Increased spacing
+    label_height = _draw_wrapped_text(surface, "Show FPS:", settings.scoreFont, settings.white,
+                       column_width / 2, (col2_x - 10, y_pos), right_align=True)
+
+    fps_box_rect = pygame.Rect(0, 0, 30, 30); fps_box_rect.midleft = (col2_x + 10, y_pos)
     fps_box_color = settings.white if fps_box_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, fps_box_color, fps_box_rect, 2, 3)
     if settings.showFps:
         pygame.draw.lines(surface, settings.snakeColor, False, [(fps_box_rect.left + 5, fps_box_rect.centery), (fps_box_rect.centerx - 2, fps_box_rect.bottom - 5), (fps_box_rect.right - 5, fps_box_rect.top + 5)], 3)
     buttons['fps_toggle'] = fps_box_rect
 
-    # Debug Mode Toggle
-    debug_label_surface = settings.scoreFont.render("Debug Mode:", True, settings.white)
-    debug_label_rect = debug_label_surface.get_rect(midright=(win_w / 2, toggle_y_start + 25))
-    surface.blit(debug_label_surface, debug_label_rect)
+    # --- Column 3: General ---
+    title_height = _draw_wrapped_text(surface, "General", settings.scoreFont, settings.white,
+                       column_width, (col3_x, y_start))
 
-    debug_box_rect = pygame.Rect(0, 0, 30, 30)
-    debug_box_rect.midleft = (win_w / 2 + 10, toggle_y_start + 25)
+    y_pos = y_start + title_height / 2 + 60 # Position content relative to the title's bottom edge
+    keybinds_text = "Configure Controls"
+    
+    button_width = column_width * 0.9
+    char_width = settings.scoreFont.size('W')[0]
+    wrap_at = max(1, int(button_width / char_width))
+    wrapped_lines = textwrap.wrap(keybinds_text, width=wrap_at)
+    button_height = len(wrapped_lines) * settings.scoreFont.get_height() + 20 # 10px padding top/bottom
+
+    keybinds_rect = pygame.Rect(0, 0, button_width, button_height)
+    keybinds_rect.center = (col3_x, y_pos)
+    keybindsColor = settings.white if keybinds_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    pygame.draw.rect(surface, keybindsColor, keybinds_rect, 2, 5)
+    _draw_wrapped_text(surface, keybinds_text, settings.scoreFont, keybindsColor, button_width - 10, keybinds_rect.center)
+    buttons['keybinds'] = keybinds_rect
+
+    y_pos += button_height / 2 + 40 # Adjusted spacing
+    label_height = _draw_wrapped_text(surface, "Debug Mode:", settings.scoreFont, settings.white,
+                       column_width / 2, (col3_x - 10, y_pos), right_align=True)
+
+    debug_box_rect = pygame.Rect(0, 0, 30, 30); debug_box_rect.midleft = (col3_x + 10, y_pos)
     debug_box_color = settings.white if debug_box_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, debug_box_color, debug_box_rect, 2, 3)
     if settings.debugMode:
         pygame.draw.lines(surface, settings.snakeColor, False, [(debug_box_rect.left + 5, debug_box_rect.centery), (debug_box_rect.centerx - 2, debug_box_rect.bottom - 5), (debug_box_rect.right - 5, debug_box_rect.top + 5)], 3)
     buttons['debug_toggle'] = debug_box_rect
 
+    y_pos += max(label_height, 30) + 30 # Increased spacing
+    if settings.debugMode:
+        debug_text = "Debug Settings"
+        debug_surf = settings.smallFont.render(debug_text, True, settings.white)
+        debug_rect = pygame.Rect(0, 0, debug_surf.get_width() + 20, 40)
+        debug_rect.center = (col3_x, y_pos)
+        debug_color = settings.white if debug_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        pygame.draw.rect(surface, debug_color, debug_rect, 2, 5)
+        debug_surf = settings.smallFont.render(debug_text, True, debug_color)
+        surface.blit(debug_surf, debug_surf.get_rect(center=debug_rect.center))
+        buttons['debug_menu'] = debug_rect
+    else:
+        buttons['debug_menu'] = pygame.Rect(0,0,0,0)
+
     # Save Button
     saveText = "Back to Menu"
     saveSurface = settings.scoreFont.render(saveText, True, settings.white)
-    save_rect = pygame.Rect(0, 0, saveSurface.get_width() + 40, 50) # Centered horizontally
-    save_rect.center = (win_w / 2, win_h * 0.92) # Positioned near the bottom
+    save_rect = pygame.Rect(0, 0, saveSurface.get_width() + 40, 50)
+    save_rect.center = (win_w / 2, win_h * 0.92) # Positioned lower
     saveColor = settings.white if save_rect.collidepoint(mouse_pos) else settings.uiElementColor
     pygame.draw.rect(surface, saveColor, save_rect, 2, 5)
     saveSurface = settings.scoreFont.render(saveText, True, saveColor) # Re-render with hover color
@@ -294,7 +359,7 @@ def draw_custom_color_menu(surface, temp_color, editing_component=None, input_st
     surface.blit(title_surface, title_rect)
 
     # Color Preview
-    _draw_snake_preview(surface, win_h * 0.3, temp_color)
+    _draw_snake_preview(surface, win_w / 2, win_h * 0.3, temp_color)
 
     # RGB Sliders
     y_pos = win_h * 0.5
@@ -478,71 +543,91 @@ def draw_debug_settings_menu(surface, temp_debug_settings):
     win_w, win_h = surface.get_size()
     mouse_pos = pygame.mouse.get_pos()
     buttons = {}
-    y_pos = win_h * 0.1
 
     # Title
     title_surface = settings.titleFont.render("Debug Settings", True, settings.gold)
-    surface.blit(title_surface, title_surface.get_rect(center=(win_w / 2, y_pos)))
-    y_pos += 80
+    surface.blit(title_surface, title_surface.get_rect(center=(win_w / 2, win_h * 0.1)))
 
-    # --- Visibility Toggles ---
-    vis_title_surf = settings.scoreFont.render("Overlay Visibility", True, settings.white)
-    surface.blit(vis_title_surf, vis_title_surf.get_rect(center=(win_w / 4, y_pos)))
+    # --- Column Layout ---
+    col1_x = win_w * 0.20
+    col2_x = win_w * 0.50
+    col3_x = win_w * 0.80
+    y_start = win_h * 0.2
+    column_width = win_w * 0.28 # Define a width for wrapping
 
-    # --- Value Overrides ---
-    val_title_surf = settings.scoreFont.render("Value Overrides", True, settings.white)
-    surface.blit(val_title_surf, val_title_surf.get_rect(center=(win_w * 0.75, y_pos)))
-    y_pos += 50
+    # --- Helper function for drawing value editors ---
+    def draw_value_editor(y, x, key, label, is_chance=False):
+        label_surf = settings.debugMenuFont.render(label, True, settings.white)
+        surface.blit(label_surf, label_surf.get_rect(midright=(x - 80, y)))
 
-    # Draw visibility toggles on the left
-    vis_y = y_pos
+        dec_rect = pygame.Rect(0, 0, 30, 30); dec_rect.center = (x - 40, y)
+        buttons[f'dec_{"chance_" if is_chance else ""}{key}'] = dec_rect # Fix button key
+        dec_color = settings.white if dec_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        pygame.draw.rect(surface, dec_color, dec_rect, 2, 5)
+        surface.blit(settings.debugMenuFont.render("-", True, dec_color), settings.debugMenuFont.render("-", True, dec_color).get_rect(center=dec_rect.center))
+        
+        value_to_draw = temp_debug_settings['eventChancesOverride'][key] if is_chance else temp_debug_settings[key]
+
+        val_surf = settings.debugMenuFont.render(str(value_to_draw), True, settings.white)
+        surface.blit(val_surf, val_surf.get_rect(center=(x + 20, y)))
+
+        inc_rect = pygame.Rect(0, 0, 30, 30); inc_rect.center = (x + 80, y)
+        buttons[f'inc_{"chance_" if is_chance else ""}{key}'] = inc_rect # Fix button key
+        inc_color = settings.white if inc_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        pygame.draw.rect(surface, inc_color, inc_rect, 2, 5)
+        surface.blit(settings.debugMenuFont.render("+", True, inc_color), settings.debugMenuFont.render("+", True, inc_color).get_rect(center=inc_rect.center))
+        return y + 45
+
+    # --- Column 1: General Overrides ---
+    _draw_wrapped_text(surface, "General Overrides", settings.debugMenuFont, settings.white,
+                       column_width, (col1_x, y_start))
+    y_pos = y_start + 50
+
+    y_pos = draw_value_editor(y_pos, col1_x, 'eventChanceOverride', "Event Chance %:")
+    y_pos = draw_value_editor(y_pos, col1_x, 'goldenAppleChanceOverride', "Golden Apple 1-in-X:")
+    y_pos = draw_value_editor(y_pos, col1_x, 'eventTimerMaxOverride', "Event Timer (s):")
+    y_pos = draw_value_editor(y_pos, col1_x, 'eventDurationOverride', "Event Duration (s):")
+    y_pos = draw_value_editor(y_pos, col1_x, 'eventCountdownDurationOverride', "Event Countdown (s):")
+    y_pos += 15 # Add a small separator
+    y_pos = draw_value_editor(y_pos, col1_x, 'applesGaloreCountOverride', "Apples Galore #:")
+    y_pos = draw_value_editor(y_pos, col1_x, 'goldenAppleRainCountOverride', "Golden Rain #:")
+    y_pos = draw_value_editor(y_pos, col1_x, 'beegSnakeGrowthOverride', "BEEG Growth:")
+    y_pos = draw_value_editor(y_pos, col1_x, 'smallSnakeShrinkOverride', "Small Shrink:")
+    y_pos = draw_value_editor(y_pos, col1_x, 'racecarSpeedBoostOverride', "Racecar Boost:")
+    y_pos = draw_value_editor(y_pos, col1_x, 'slowSnakeSpeedReductionOverride', "Slow Reduction:")
+
+    # --- Column 2: Event Chance Overrides ---
+    _draw_wrapped_text(surface, "Event Chances", settings.debugMenuFont, settings.white,
+                       column_width, (col2_x, y_start))
+    y_pos = y_start + 50
+
+    for event_name in sorted(temp_debug_settings['eventChancesOverride'].keys()):
+        # Create a unique key for the button dictionary
+        chance_key = f"chance_{event_name}"
+        y_pos = draw_value_editor(y_pos, col2_x, event_name, f"{event_name}:", is_chance=True)
+
+    # --- Column 3: Visibility Toggles ---
+    _draw_wrapped_text(surface, "Overlay Visibility", settings.debugMenuFont, settings.white,
+                       column_width, (col3_x, y_start))
+    y_pos = y_start + 50
+
     for key in sorted([k for k in temp_debug_settings.keys() if k.startswith('show')]):
-        label_surf = settings.smallFont.render(key[4:] + ":", True, settings.white) # "showState" -> "State:"
-        surface.blit(label_surf, label_surf.get_rect(midright=(win_w / 4 - 10, vis_y)))
-
-        box_rect = pygame.Rect(0, 0, 25, 25)
-        box_rect.midleft = (win_w / 4, vis_y)
+        label_surf = settings.debugMenuFont.render(key[4:] + ":", True, settings.white)
+        surface.blit(label_surf, label_surf.get_rect(midright=(col3_x - 10, y_pos)))
+        box_rect = pygame.Rect(0, 0, 25, 25); box_rect.midleft = (col3_x, y_pos)
         buttons[key] = box_rect
-
         box_color = settings.white if box_rect.collidepoint(mouse_pos) else settings.uiElementColor
         pygame.draw.rect(surface, box_color, box_rect, 2, 3)
         if temp_debug_settings[key]:
-            pygame.draw.line(surface, settings.snakeColor, (box_rect.left + 5, box_rect.top + 5), (box_rect.right - 5, box_rect.bottom - 5), 3)
-            pygame.draw.line(surface, settings.snakeColor, (box_rect.left + 5, box_rect.bottom - 5), (box_rect.right - 5, box_rect.top + 5), 3)
-        vis_y += 35
-
-    # Draw value editors on the right
-    val_y = y_pos
-    for key in ['eventChanceOverride', 'goldenAppleChanceOverride']:
-        label_text = key.replace('Override', '')
-        label_surf = settings.smallFont.render(label_text + ":", True, settings.white)
-        surface.blit(label_surf, label_surf.get_rect(midright=(win_w * 0.75 - 80, val_y)))
-
-        # Decrement button
-        dec_rect = pygame.Rect(0, 0, 40, 40)
-        dec_rect.center = (win_w * 0.75 - 40, val_y)
-        buttons[f'dec_{key}'] = dec_rect
-        pygame.draw.rect(surface, settings.uiElementColor, dec_rect, 2, 5)
-        surface.blit(settings.scoreFont.render("-", True, settings.white), settings.scoreFont.render("-", True, settings.white).get_rect(center=dec_rect.center))
-
-        # Value display
-        val_surf = settings.scoreFont.render(str(temp_debug_settings[key]), True, settings.white)
-        surface.blit(val_surf, val_surf.get_rect(center=(win_w * 0.75 + 20, val_y)))
-
-        # Increment button
-        inc_rect = pygame.Rect(0, 0, 40, 40)
-        inc_rect.center = (win_w * 0.75 + 80, val_y)
-        buttons[f'inc_{key}'] = inc_rect
-        pygame.draw.rect(surface, settings.uiElementColor, inc_rect, 2, 5)
-        surface.blit(settings.scoreFont.render("+", True, settings.white), settings.scoreFont.render("+", True, settings.white).get_rect(center=inc_rect.center))
-        val_y += 60
+            pygame.draw.lines(surface, settings.snakeColor, False, [(box_rect.left + 5, box_rect.centery), (box_rect.centerx - 2, box_rect.bottom - 5), (box_rect.right - 5, box_rect.top + 5)], 3)
+        y_pos += 35
 
     # Back Button
     back_rect = pygame.Rect(0, 0, 200, 50)
     back_rect.center = (win_w / 2, win_h * 0.9)
     buttons['back'] = back_rect
     pygame.draw.rect(surface, settings.white if back_rect.collidepoint(mouse_pos) else settings.uiElementColor, back_rect, 2, 5)
-    surface.blit(settings.scoreFont.render("Back", True, settings.white), settings.scoreFont.render("Back", True, settings.white).get_rect(center=back_rect.center))
+    surface.blit(settings.debugMenuFont.render("Back", True, settings.white), settings.debugMenuFont.render("Back", True, settings.white).get_rect(center=back_rect.center))
 
     return buttons
 

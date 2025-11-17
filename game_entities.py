@@ -16,6 +16,8 @@ class Snake:
         self.pre_event_length = 0
         self.is_size_event_active = False
         self.growth_during_event = 0
+        self.just_grew = False # Flag to prevent tail from being popped right after growing.
+        self.animating_segments = [] # For grow/shrink animations
 
 
     def reset(self):
@@ -34,6 +36,8 @@ class Snake:
         self.pre_event_length = 0
         self.is_size_event_active = False
         self.growth_during_event = 0
+        self.just_grew = False
+        self.animating_segments = []
 
     def change_direction(self, event_key):
         """Updates the snake's target direction based on key presses."""
@@ -59,14 +63,18 @@ class Snake:
         """Grows the snake by not removing the tail segment. This is called when food is eaten."""
         if self.is_size_event_active:
             self.growth_during_event += 1
-        pass
+        self.just_grew = True # Set the flag
 
     def grow_by(self, amount):
         """Instantly grows the snake by a given amount for the 'BEEEG Snake' event."""
-        if not self.body: return
+        if not self.body or amount <= 0: return
         tail_segment = self.body[-1]
-        for _ in range(amount):
-            self.body.append(list(tail_segment)) # Add copies of the tail segment
+        start_time = pygame.time.get_ticks()
+        for i in range(amount):
+            new_segment = list(tail_segment)
+            self.body.append(new_segment)
+            # Add to animation list to be faded in
+            self.animating_segments.append({'segment': new_segment, 'type': 'in', 'start_time': start_time})
 
     def shrink_by(self, amount):
         """
@@ -74,12 +82,53 @@ class Snake:
         to a length less than 2.
         """
         min_length = 2
-        current_length = len(self.body)
+        # Only consider non-animating segments for the current length
+        stable_length = len([s for s in self.body if s not in [a['segment'] for a in self.animating_segments]])
         
         # Calculate how many segments can be safely removed
-        removable_segments = current_length - min_length
-        segments_to_remove = min(amount, removable_segments)
-        self.body = self.body[:-segments_to_remove]
+        removable_segments = stable_length - min_length
+        segments_to_remove_count = min(amount, removable_segments)
+        if segments_to_remove_count <= 0: return
+
+        segments_to_animate = self.body[-segments_to_remove_count:]
+        start_time = pygame.time.get_ticks()
+
+        for i in range(len(self.body) - segments_to_remove_count, len(self.body)):
+            segment = self.body[i]
+            image_key = 'body' # Default to body
+            angle = 0
+
+            if i == len(self.body) - 1: # This is the tail
+                image_key = 'tail'
+                prev_segment = self.body[i - 1]
+                vec_x, vec_y = prev_segment[0] - segment[0], prev_segment[1] - segment[1]
+                if vec_y > 0: angle = 180
+                elif vec_y < 0: angle = 0
+                elif vec_x > 0: angle = -90
+                elif vec_x < 0: angle = 90
+            else: # This is a body segment
+                prev_segment = self.body[i - 1]
+                next_segment = self.body[i + 1]
+                if prev_segment[0] == next_segment[0] or prev_segment[1] == next_segment[1]:
+                    image_key = 'body'
+                    angle = 90 if prev_segment[1] == next_segment[1] else 0
+                else:
+                    image_key = 'turn'
+                    prev_vec_x, prev_vec_y = prev_segment[0] - segment[0], prev_segment[1] - segment[1]
+                    next_vec_x, next_vec_y = next_segment[0] - segment[0], next_segment[1] - segment[1]
+                    if (prev_vec_x > 0 and next_vec_y < 0) or (prev_vec_y < 0 and next_vec_x > 0): angle = 0
+                    elif (prev_vec_x > 0 and next_vec_y > 0) or (prev_vec_y > 0 and next_vec_x > 0): angle = -90
+                    elif (prev_vec_x < 0 and next_vec_y > 0) or (prev_vec_y > 0 and next_vec_x < 0): angle = 180
+                    elif (prev_vec_x < 0 and next_vec_y < 0) or (prev_vec_y < 0 and next_vec_x < 0): angle = 90
+            
+            # Store all necessary info for drawing later
+            self.animating_segments.append({
+                'segment': segment, 'type': 'out', 'start_time': start_time,
+                'image_key': image_key, 'angle': angle
+            })
+
+        # Now, logically remove the segments from the snake's body
+        self.body = self.body[:-segments_to_remove_count]
 
     def revert_size(self):
         """Reverts the snake's size to its pre-event length."""
@@ -89,14 +138,17 @@ class Snake:
 
         if current_length > target_length:
             # If we are longer than the target (e.g., BEEEG event), shrink to target.
-            self.body = self.body[:target_length]
+            self.shrink_by(current_length - target_length)
         elif current_length < target_length:
             # If we are shorter (e.g., Small event), grow to target.
-            self.grow_by(target_length - current_length)
+            self.grow_by(target_length - current_length) # This will now animate
     
     def move(self):
         """Moves the snake by removing the tail segment (when no food is eaten)."""
-        self.body.pop()
+        if self.just_grew:
+            self.just_grew = False # Reset the flag for the next frame
+        else:
+            self.body.pop()
 
     def check_collision(self, next_pos):
         """Checks for wall collisions or self-collisions."""
@@ -147,11 +199,27 @@ class Snake:
         new_rect = rotated_image.get_rect(center=cell_rect.center)
         return rotated_image, new_rect
 
-    def draw(self, surface, isDying=False, fadeProgress=None, staggerDelay=0.0):
+    def draw(self, surface, isDying=False, fadeProgress=None):
         """
         Draws the snake using sprites, determining the correct orientation for each segment.
         """
         self._update_scaled_images() # Efficiently rescale images if needed
+
+        current_time = pygame.time.get_ticks()
+        # Iterate over a copy of the list to allow removing items
+        for anim in self.animating_segments[:]:
+            elapsed = current_time - anim['start_time']
+            if elapsed >= settings.SNAKE_SIZE_ANIMATION_DURATION:
+                # Animation is finished
+                if anim['type'] == 'out':
+                    # For a fade-out, the segment is already logically removed from the body.
+                    # We just need to stop drawing it.
+                    pass
+                # Remove from the animation list so it's no longer processed or drawn.
+                self.animating_segments.remove(anim)
+
+        # Create a quick lookup for animating segments and their state
+        animating_lookup = {id(a['segment']): a for a in self.animating_segments}
 
         for original_index, segment in enumerate(self.body):
             # The segment's screen position
@@ -161,6 +229,8 @@ class Snake:
                 self.last_block_size, # Use the guaranteed integer size
                 self.last_block_size
             )
+
+            segment_id = id(segment)
 
             if original_index == 0:  # Head
                 # Use the 'head_lose' sprite if dying, otherwise use the normal head.
@@ -235,21 +305,55 @@ class Snake:
                 # Default behavior
                 colored_image = ui.tint_surface(final_image, settings.snakeColor)
             
-            # --- Then, apply the alpha fade if the animation is active ---
+            # --- Then, apply alpha fades for animations ---
             if fadeProgress is not None:
-                # Use the dynamically calculated stagger delay.
-                stagger = original_index * staggerDelay
-                fade_start_time = stagger
-                fade_end_time = fade_start_time + settings.DEATH_ANIMATION_SEGMENT_FADE_DURATION
-                
-                # Calculate this segment's individual fade progress (0.0 to 1.0).
-                segment_progress = (fadeProgress - fade_start_time) / settings.DEATH_ANIMATION_SEGMENT_FADE_DURATION
-                segment_progress = max(0.0, min(1.0, segment_progress)) # Clamp value
-                
-                colored_image.set_alpha(int(255 * (1.0 - segment_progress))) # Apply alpha
+                # Death animation (fades out the whole snake)
+                # Calculate a single, uniform fade progress for all segments.
+                progress = fadeProgress / settings.DEATH_FADE_OUT_DURATION
+                progress = max(0.0, min(1.0, progress)) # Clamp value between 0 and 1
+                colored_image.set_alpha(int(255 * (1.0 - progress))) # Apply alpha
+            elif segment_id in animating_lookup:
+                # Grow/Shrink animation (fades individual segments)
+                anim = animating_lookup[segment_id]
+                elapsed = current_time - anim['start_time']
+                progress = min(1.0, elapsed / settings.SNAKE_SIZE_ANIMATION_DURATION)
+
+                if anim['type'] == 'in':
+                    # Fading in: alpha goes from 0 to 255
+                    colored_image.set_alpha(int(255 * progress))
+                elif anim['type'] == 'out':
+                    # Fading out: alpha goes from 255 to 0
+                    colored_image.set_alpha(int(255 * (1.0 - progress)))
 
             # --- Finally, draw the fully prepared image to the screen once ---
             surface.blit(colored_image, final_rect)
+            
+        # This block handles segments that are no longer in self.body but are still fading.
+        for anim in self.animating_segments:
+            if anim['type'] == 'out':
+                segment = anim['segment']
+
+                rect = pygame.Rect(
+                    int(segment[0] * self.last_block_size + settings.xOffset), 
+                    int(segment[1] * self.last_block_size + settings.yOffset), 
+                    self.last_block_size,
+                    self.last_block_size
+                )
+                
+                image_to_rotate = self.scaled_images[anim['image_key']]
+                angle = anim['angle']
+
+                final_image, final_rect = self._rotate_and_center(image_to_rotate, angle, rect)
+                
+                # Tint the image
+                colored_image = ui.tint_surface(final_image, settings.snakeColor)
+
+                # Apply the fade-out animation
+                elapsed = current_time - anim['start_time']
+                progress = min(1.0, elapsed / settings.SNAKE_SIZE_ANIMATION_DURATION)
+                colored_image.set_alpha(int(255 * (1.0 - progress)))
+
+                surface.blit(colored_image, final_rect)
 
 
 class Food:

@@ -58,6 +58,7 @@ import ui
 from game_controller import GameController
 import splash_screen # Import the new splash screen module
 import base64
+import binascii
 
 class GameState(Enum):
     MAIN_MENU = 1
@@ -133,6 +134,40 @@ def handle_game_update(time_since_last_move, delta_time, game_instance, active_e
     
     return time_since_last_move, game_over
 
+def check_secret_code(sequence: list[int]) -> bool:
+    """
+    Checks if the provided key sequence matches the secret code.
+    Returns True if the code is successfully entered, False otherwise.
+    """
+    # This string is a Base64-encoded representation of the secret code.
+    # Sequence: UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT, B, A
+    encoded_sequence = b'S19VUHxLX3c7S19VUHxLX3c7S19ET1dOfEtfcztLX0RPV058S19zO0tfTEVGVHxLX2E7S19SSUdIVHxLX2Q7S1fTEUZUfEtfYTtLX1JJR0hUfEtfZDtLX2I7S19hCg=='
+
+    try:
+        decoded_bytes = base64.b64decode(encoded_sequence)
+        key_string = decoded_bytes.decode('utf-8')
+        secret_code_steps = []
+        for step_str in key_string.split(';'):
+            key_names = step_str.split('|')
+            keys_for_step = [getattr(pygame, name.strip()) for name in key_names]
+            secret_code_steps.append(keys_for_step)
+    except (binascii.Error, AttributeError, UnicodeDecodeError):
+        # If the encoded string is corrupt, the code can't be entered.
+        return False
+
+    # The sequence must be the exact length of the code.
+    if len(sequence) != len(secret_code_steps):
+        return False
+
+    # Iterate through the user's sequence and the valid steps.
+    for i, user_key in enumerate(sequence):
+        valid_keys_for_step = secret_code_steps[i]
+        if user_key not in valid_keys_for_step:
+            return False # Mismatch found.
+
+    # If we get here, it's a match.
+    return True
+
 def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func, sequence):
     """Handles events for the MAIN_MENU state."""
     # This string is a Base64-encoded representation of the secret code.
@@ -140,39 +175,16 @@ def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func,
     # for a step are separated by '|'. This is robust and supports keybinds.
     # Sequence: UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT, B, A
     # NOTE: This string should be replaced with the one you manually encode.
-    encoded_sequence = b'S19VUHxLX3c7S19VUHxLX3c7S19ET1dOfEtfcztLX0RPV058S19zO0tfTEVGVHxLX2E7S19SSUdIVHxLX2Q7S19MRUZUfEtfYTtLX1JJR0hUfEtfZDtLX2I7S19hCg=='
-
-    # Decode the string and parse it into a list of lists of key codes.
-    decoded_bytes = base64.b64decode(encoded_sequence)
-    key_string = decoded_bytes.decode('utf-8')
-    secret_code_steps = []
-    for step_str in key_string.split(';'):
-        # Use getattr to convert the string name (e.g., "K_UP") into the actual pygame constant.
-        key_names = step_str.split('|')
-        # Use .strip() on each name to remove any accidental whitespace or newlines.
-        # This makes the parsing much more robust.
-        keys_for_step = [getattr(pygame, name.strip()) for name in key_names]
-        secret_code_steps.append(keys_for_step)
 
     if event.type == pygame.KEYDOWN:
         # --- Secret Code Logic ---
-        # Keep track of the last N key presses, where N is the length of the code.
+        # Append the new key and keep the sequence at a manageable length.
         sequence.append(event.key)
-        if len(sequence) > len(secret_code_steps):
+        if len(sequence) > 10: # Length of the secret code
             sequence.pop(0)
 
-        # If the sequence is the correct length, check it for a match.
-        if len(sequence) == len(secret_code_steps):
-            is_match = True
-            # Iterate through the user's sequence and the valid steps.
-            for i in range(len(secret_code_steps)):
-                user_key = sequence[i]
-                valid_keys_for_step = secret_code_steps[i]
-                if user_key not in valid_keys_for_step:
-                    is_match = False
-                    break # Mismatch found, no need to check further.
-            
-            if is_match and not settings.rainbowModeUnlocked:
+        # Check the sequence if rainbow mode isn't already unlocked.
+        if not settings.rainbowModeUnlocked and check_secret_code(sequence):
             # --- SUCCESS ---
                 settings.rainbowModeUnlocked = True
                 settings.userSettings["rainbowModeUnlocked"] = True # Save the unlock
@@ -221,19 +233,36 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
             settings.buttonClickSound.play()
             settings.debugMode = not settings.debugMode
             settings.userSettings["debugMode"] = settings.debugMode
+            # No need to save here, it's saved on exit.
         elif settings_buttons['fps_toggle'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
             settings.showFps = not settings.showFps
-            settings.userSettings["showFps"] = settings.showFps
+        elif settings_buttons.get('vsync_toggle') and settings_buttons['vsync_toggle'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            settings.vsync = not settings.vsync
+            # This setting requires re-initializing the display mode to take effect.
+            current_size = settings.window.get_size()
+            settings.window = pygame.display.set_mode(current_size, pygame.RESIZABLE | pygame.DOUBLEBUF, vsync=1 if settings.vsync else 0)
         elif settings_buttons['save'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
+            # Save all settings when leaving the menu
             settings.userSettings["snakeColorName"] = color_names[current_color_index]
+            settings.userSettings["showFps"] = settings.showFps
+            settings.userSettings["vsync"] = settings.vsync
+            settings.userSettings["maxFps"] = settings.maxFps
             settings_manager.save_settings(settings.settingsFile, settings.userSettings)
             new_state = GameState.MAIN_MENU
-        # [REFACTOR] Check for a dedicated 'customize' button instead of clicking the text.
         elif settings_buttons.get('customize_button') and settings_buttons['customize_button'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
             new_state = GameState.CUSTOM_COLOR_SETTINGS
+        # Only allow changing framerate limit if V-Sync is off
+        elif not settings.vsync and settings_buttons.get('inc_fps') and settings_buttons['inc_fps'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            # Increase in steps of 12, common for refresh rates (60, 72, 120, 144, 240)
+            settings.maxFps = min(360, settings.maxFps + 12)
+        elif not settings.vsync and settings_buttons.get('dec_fps') and settings_buttons['dec_fps'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            settings.maxFps = max(30, settings.maxFps - 12)
         elif settings.debugMode and settings_buttons.get('debug_menu') and settings_buttons['debug_menu'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
             new_state = GameState.DEBUG_SETTINGS
@@ -332,12 +361,19 @@ def handle_debug_settings_events(event, mouse_pos, debug_buttons, temp_debug_set
                 settings.buttonClickSound.play()
                 if button.startswith('show'):
                     temp_debug_settings[button] = not temp_debug_settings[button]
-                elif button.startswith('inc_'):
-                    key = button[4:]
-                    temp_debug_settings[key] += 1
-                elif button.startswith('dec_'):
-                    key = button[4:]
-                    temp_debug_settings[key] = max(1, temp_debug_settings[key] - 1)
+                elif button.startswith('inc_chance_'):
+                    temp_debug_settings['eventChancesOverride'][button.replace('inc_chance_', '')] += 1
+                elif button.startswith('dec_chance_'):
+                    temp_debug_settings['eventChancesOverride'][button.replace('dec_chance_', '')] = max(0, temp_debug_settings['eventChancesOverride'][button.replace('dec_chance_', '')] - 1)
+                elif button.startswith('inc_'): # General increment
+                    key = button.replace('inc_', '')
+                    # Use a larger step for timer values for convenience
+                    step = 5 if 'Timer' in key or 'Duration' in key else 1
+                    temp_debug_settings[key] += step
+                elif button.startswith('dec_'): # General decrement
+                    key = button.replace('dec_', '')
+                    step = 5 if 'Timer' in key or 'Duration' in key else 1
+                    temp_debug_settings[key] = max(1, temp_debug_settings[key] - step)
                 elif button == 'back':
                     new_state = GameState.COLOR_SETTINGS
                 break
@@ -394,18 +430,16 @@ def main():
     # Work on a temporary copy
     temp_debug_settings = settings.debugSettings.copy()
 
+
     # Work on a temporary copy of the keybinds
     temp_keybinds = {k: list(v) for k, v in settings.keybinds.items()}
     selected_action_to_rebind = None # e.g., 'UP', 'DOWN', None
 
-    # --- [NEW] State for custom color menu interactions ---
     heldButton = None
     heldButtonStartTime = 0
 
-    # --- [NEW] State for the death animation ---
     deathAnimationStartTime = 0
     deathSoundHasPlayed = False
-    deathStaggerDelay = 0 # Will be calculated dynamically
     heldButtonLastTick = 0
     INITIAL_HOLD_DELAY = 400
     REPEATED_HOLD_DELAY = 40
@@ -435,8 +469,6 @@ def main():
     # This prevents an UnboundLocalError on the first frame.
     menu_buttons = {}
     settings_buttons = {}
-
-    # --- [REFACTOR] Show Splash Screen which handles asset loading ---
     splash_screen.show()
 
     keybind_buttons = {}
@@ -597,15 +629,6 @@ def main():
                 current_state = GameState.DYING
                 deathAnimationStartTime = pygame.time.get_ticks()
                 deathSoundHasPlayed = False
-                # --- [REFACTOR] Calculate stagger delay ONCE when animation starts ---
-                soundDurationMs = settings.gameOverSound.get_length() * 1000
-                # The time available for staggering is the total sound duration minus one segment's fade time.
-                timeForStaggering = soundDurationMs - settings.DEATH_ANIMATION_SEGMENT_FADE_DURATION
-                numSegments = len(game.snake.body)
-                if numSegments > 1 and timeForStaggering > 0:
-                    deathStaggerDelay = timeForStaggering / (numSegments - 1)
-                else:
-                    deathStaggerDelay = 0 # If snake is tiny or sound is short, they fade together.
             
             # Drawing is independent of logic updates and will run at the monitor's refresh rate.
             if current_state == GameState.PLAYING:
@@ -613,7 +636,8 @@ def main():
             
             # Draw revert countdown separately from the notification to ensure it lasts for the full event duration.
             if active_event in ["BEEEG Snake", "Small Snake", "Racecar Snake", "Slow Snake"]:
-                time_left = (event_start_time + settings.EVENT_DURATION - current_time) / 1000
+                duration = (settings.debugSettings['eventDurationOverride'] * 1000) if settings.debugMode else settings.EVENT_DURATION
+                time_left = (event_start_time + duration - pygame.time.get_ticks()) / 1000
                 if time_left > 0:
                     ui.draw_revert_countdown(settings.window, int(time_left) + 1)
 
@@ -624,14 +648,6 @@ def main():
                 current_state = GameState.DYING
                 deathAnimationStartTime = pygame.time.get_ticks()
                 deathSoundHasPlayed = False
-                # --- [REFACTOR] Calculate stagger delay ONCE when animation starts ---
-                soundDurationMs = settings.gameOverSound.get_length() * 1000
-                timeForStaggering = soundDurationMs - settings.DEATH_ANIMATION_SEGMENT_FADE_DURATION
-                numSegments = len(game.snake.body)
-                if numSegments > 1 and timeForStaggering > 0:
-                    deathStaggerDelay = timeForStaggering / (numSegments - 1)
-                else:
-                    deathStaggerDelay = 0
             
             # Drawing is independent
             game.draw(settings.window) # Keep drawing the game
@@ -639,23 +655,31 @@ def main():
             current_time = pygame.time.get_ticks()
             time_since_start = current_time - event_start_time
             
-            if time_since_start >= settings.EVENT_COUNTDOWN_DURATION:
+            countdown_duration = (settings.debugSettings['eventCountdownDurationOverride'] * 1000) if settings.debugMode else settings.EVENT_COUNTDOWN_DURATION
+            if time_since_start >= countdown_duration:
                 # Countdown finished! Trigger the actual event.
                 current_state = GameState.PLAYING
                 
-                # Create a list of possible events, excluding the last one.
-                possible_events = [e for e in event_list if e != last_event]
-                # If the list is somehow empty (e.g., only one event exists), fall back to the full list.
-                if not possible_events:
-                    possible_events = event_list
+                weights_source = settings.debugSettings['eventChancesOverride'] if settings.debugMode else settings.DEFAULT_EVENT_WEIGHTS
 
-                active_event = random.choice(possible_events)
+                # Filter out the last event to prevent repeats
+                possible_events = []
+                weights = []
+                for event, weight in weights_source.items():
+                    if event != last_event:
+                        possible_events.append(event)
+                        weights.append(weight)
+
+                # random.choices returns a list, so we take the first element.
+                # It can handle an empty list, in which case it returns an empty list.
+                chosen_event = random.choices(possible_events, weights=weights, k=1)
+                active_event = chosen_event[0] if chosen_event else None
                 game.start_event(active_event)
                 event_start_time = pygame.time.get_ticks() # Reset timer for the event's duration
                 notification_end_time = event_start_time + settings.EVENT_NOTIFICATION_DURATION
             else:
                 # Draw the countdown UI
-                seconds_left = (settings.EVENT_COUNTDOWN_DURATION - time_since_start) / 1000
+                seconds_left = (countdown_duration - time_since_start) / 1000
                 ui.draw_event_countdown(settings.window, int(seconds_left) + 1)
 
         elif current_state == GameState.PAUSED:
@@ -682,11 +706,11 @@ def main():
                 fade_progress = timeSinceDeath - settings.DEATH_ANIMATION_INITIAL_PAUSE
 
             # Draw the snake, passing the fade progress to it.
-            game.draw(settings.window, isDying=True, fadeProgress=fade_progress, staggerDelay=deathStaggerDelay)
+            game.draw(settings.window, isDying=True, fadeProgress=fade_progress)
             
             # Transition to the game over screen once the animation is complete.
-            soundDurationMs = settings.gameOverSound.get_length() * 1000
-            if fade_progress is not None and fade_progress >= soundDurationMs:
+            # The animation is complete when the fade duration has passed.
+            if fade_progress is not None and fade_progress >= settings.DEATH_FADE_OUT_DURATION:
                 current_state = GameState.GAME_OVER
 
         # --- Event Management (runs continuously during gameplay) ---
@@ -695,8 +719,9 @@ def main():
 
             # 1. Check if an active event has expired.
             if active_event:
+                duration = (settings.debugSettings['eventDurationOverride'] * 1000) if settings.debugMode else settings.EVENT_DURATION
                 is_food_event = game.is_food_event_active(active_event)
-                if not is_food_event and current_time > event_start_time + settings.EVENT_DURATION:
+                if not is_food_event and current_time > event_start_time + duration:
                     game.stop_event(active_event)
                     last_event, active_event = active_event, None
                 elif is_food_event and not game.food.items:
@@ -705,7 +730,8 @@ def main():
 
             # 2. If no event is active, count up the main event timer.
             if not active_event and current_state != GameState.EVENT_COUNTDOWN:
-                if event_timer < settings.EVENT_TIMER_MAX:
+                timer_max = (settings.debugSettings['eventTimerMaxOverride'] * 1000) if settings.debugMode else settings.EVENT_TIMER_MAX
+                if event_timer < timer_max:
                     event_timer += delta_time
                 else:
                     event_timer = 0
@@ -720,25 +746,27 @@ def main():
                     ui.draw_event_notification(settings.window, active_event)
             
             if active_event in ["BEEEG Snake", "Small Snake", "Racecar Snake", "Slow Snake"]:
-                time_left = (event_start_time + settings.EVENT_DURATION - current_time) / 1000
+                duration = (settings.debugSettings['eventDurationOverride'] * 1000) if settings.debugMode else settings.EVENT_DURATION
+                time_left = (event_start_time + duration - current_time) / 1000
                 if time_left > 0: ui.draw_revert_countdown(settings.window, int(time_left) + 1)
 
         elif current_state == GameState.GAME_OVER:
             # Pass the final score and high score to the UI function
             game_over_buttons = ui.draw_game_over_screen(settings.window, game.score, game.high_score)
 
-        if settings.debugMode:
+        if settings.debugMode and current_state != GameState.DEBUG_SETTINGS:
             event_time_left = 0
             if active_event:
-                event_time_left = (event_start_time + settings.EVENT_DURATION - pygame.time.get_ticks()) / 1000
+                duration = (settings.debugSettings['eventDurationOverride'] * 1000) if settings.debugMode else settings.EVENT_DURATION
+                event_time_left = (event_start_time + duration - pygame.time.get_ticks()) / 1000
 
             all_debug_info = {
                 "State": (settings.debugSettings['showState'], current_state.name),
                 "Snake Pos": (settings.debugSettings['showSnakePos'], str(game.snake.pos)),
                 "Snake Len": (settings.debugSettings['showSnakeLen'], len(game.snake.body)),
                 "Speed": (settings.debugSettings['showSpeed'], f"{game.speed:.1f}"),
-                "Normal Speed": (settings.debugSettings['showNormalSpeed'], f"{game.normalSpeed:.1f}"),
-                "Event Timer": (settings.debugSettings['showEventTimer'], f"{(settings.EVENT_TIMER_MAX - event_timer) / 1000:.1f}s"),
+                "Normal Speed": (settings.debugSettings['showNormalSpeed'], f"{game.normalSpeed:.1f}"),"Event Timer": (settings.debugSettings['showEventTimer'], 
+                f"{((settings.debugSettings['eventTimerMaxOverride'] * 1000 if settings.debugMode else settings.EVENT_TIMER_MAX) - event_timer) / 1000:.1f}s"),
                 "Active Event": (settings.debugSettings['showActiveEvent'], active_event),
                 "Event Time Left": (settings.debugSettings['showEventTimeLeft'], f"{event_time_left:.1f}s"),
                 "Size Event Active": (settings.debugSettings['showSizeEventActive'], game.snake.is_size_event_active),
@@ -762,8 +790,8 @@ def main():
         # actually appear on the screen.
         pygame.display.update()
         # clock.tick() returns milliseconds since the last frame.
-        # With vsync on, this loop will run at the monitor's refresh rate.
-        delta_time = settings.clock.tick()
+        # We pass maxFps to cap the framerate if vsync is not honored by the driver.
+        delta_time = settings.clock.tick(settings.maxFps)
 
     pygame.quit()
     sys.exit()
