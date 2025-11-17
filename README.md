@@ -87,66 +87,57 @@ For more advanced changes, you can edit the `settings.py` file to modify:
 *   `score_manager.py`: A utility module for loading and saving the obfuscated and compressed high score file (`highscore.dat`).
 *   `settings_manager.py`: A utility module for loading and saving the user's custom settings (`settings.dat`).
 *   `assets/`: A folder containing subdirectories for all game assets.
-    *   `assets/images`: Contains all the images for the game.
-    *   `assets/sounds`: Contains all the sounds for the game.
+*   `build.bat`: The automated Windows script to clean, build, and package the entire project.
+*   `create_shortcut.vbs`: A helper script used by `build.bat` to create the portable Windows shortcut.
+*   `.gitignore`: A configuration file that tells Git (version control) to ignore build artifacts and temporary files.
 
 ## Building from Source
 
-This project is set up to be easily bundled into a single executable using **PyInstaller**.
+This project includes a fully automated build script that handles cleaning, compiling, and packaging the game into a distributable `.zip` file for Windows.
 
-1.  **Install PyInstaller:**
-    If you have multiple Python versions, it's best to specify the one you intend to build with. You will also need `Pillow` for splash screen image processing.
+1.  **Install Build Dependencies:**
+    You need **PyInstaller** to create the executable and **Pillow** for splash screen image processing. If you have multiple Python versions, it's best to specify the one you intend to build with.
     ```sh
     # On Windows, for a specific version (recommended)
     py -3.14 -m pip install pyinstaller Pillow
-
-    # On other systems, or for the default python version
-    python -m pip install pyinstaller Pillow
     ```
 
-2.  **(Optional but Recommended) Clean Previous Builds:**
-    For the cleanest possible build, it's a good idea to remove the artifacts from previous compilations. Delete the following folders and file from your project directory if they exist:
-    *   `build/`
-    *   `dist/`
-    *   `ANAHKENs Modular Snake Game.spec` (or `main.spec`)
+2.  **Configure the Build (Optional):**
+    Open the `build.bat` file in a text editor. At the top, you can change the default `CurrentVersion` variable before creating a new release.
 
-3.  **Run the PyInstaller Command:**
-    Open a terminal in the project directory and run the command for your operating system. The `--clean` flag is added to ensure PyInstaller's cache is cleared, forcing a completely fresh build. The `--add-data` and `--splash` flags are crucial for including all necessary assets. For the best visual quality, provide a multi-resolution `.ico` file for the icon.
+3.  **Run the Automated Build Script:**
+    Simply double-click the `build.bat` file in the project's root directory.
 
-    ### For Windows:
-    ***
-    ```sh
-    py -3.14 -m PyInstaller --onefile --windowed --clean --name "ANAHKENs Modular Snake Game" --icon="assets/images/icon.ico" --add-data "assets;assets" --splash "assets/images/splash_screen.png" main.py
-    ```
-    ### For MacOS & Linux:
-    *(Also if you don't have the `py` launcher installed)*
-    ```sh
-    python -m PyInstaller --onefile --windowed --clean --name "ANAHKENs Modular Snake Game" --icon="assets/images/icon.ico" --add-data "assets:assets" --splash "assets/images/splash_screen.png" main.py
-    ```
-    *Note: The separator for `--add-data` is a semicolon (`;`) on Windows and a colon (`:`) on macOS/Linux.*
+    You will be prompted to enter a version number. You can type a new one (e.g., `1.2.1`) or press Enter to use the default version shown.
 
-    **A Note on Splash Screens:** This project uses two splash screens. The `--splash` parameter displays a static image while the executable unpacks its files (before any Python code runs). After that, the game's own animated splash screen runs to show the progress of loading assets like sounds and fonts into memory.
+    The script will automatically:
+    *   Clean any previous build files.
+    *   Compile the game into a single `.exe` file with embedded version information.
+    *   Create a portable `ANAHKENs Modular Snake Game.lnk` shortcut.
+    *   Package everything into a final, versioned `.zip` file (e.g., `ANAHKENs_Snake_Game_Windows_v1.2.1.zip`).
 
-4.  **Find Your Executable:**
-    PyInstaller will create a `dist` folder containing `ANAHKENs Modular Snake Game.exe`. This file can be shared and run on other Windows machines without needing Python or Pygame installed.
+4.  **Find Your Release:**
+    The final, shareable `.zip` file will be created in your project's root directory, right next to `main.py` and `build.bat`.
 
-5.  **Create a Portable Shortcut (Windows Only):**
-    To avoid making users run a `.bat` file, you can generate a professional-looking `.lnk` shortcut.
-    *   In the project's root directory, find and double-click the `create_shortcut.vbs` script.
-    *   This will instantly create a new file named `ANAHKEN's Modular Snake Game.lnk` in the same directory. This is your new portable shortcut.
+    This is the file you can share with others for them to play the game.
 
-6.  **Create a Distributable Package (Optional):**
-    To make it easy for others to download and play, you can create a `.zip` file. Your folder structure should look like this:
-    ```
-    ANAHKENs_Snake_Game_v1.0/
-    |-- ANAHKEN's Modular Snake Game.lnk         <-- The professional shortcut for users to click
-    +-- dist/
-    |   |-- ANAHKENs Modular Snake Game.exe
-    |   +-- [other files PyInstaller creates]
-    +-- assets/
-        +-- [all asset folders]
-    ```
-    Simply zip the `ANAHKENs_Snake_Game_v1.0` folder. Users can download, unzip, and double-click `ANAHKEN's Modular Snake Game.lnk` to play.
+## Testing the Build
+
+After creating a `.zip` file with the `build.bat` script, it's crucial to test it in a clean environment to ensure it will work for other users.
+
+1.  **Isolate the Package:** Copy the generated `.zip` file (e.g., `ANAHKENs_Snake_Game_Windows_v1.2.1.zip`) to a completely separate folder on your computer, like your Desktop or a new folder in your Downloads. **Do not test it from within your project folder.**
+
+2.  **Extract the Archive:** Right-click the `.zip` file and select "Extract All...". 
+
+    > **Important Warning:** Do **not** run the game by double-clicking the shortcut from within the `.zip` file window. While Windows may allow the game to launch this way, it runs the game from a temporary, hidden folder. This will prevent your settings and high score from saving correctly. You must always extract the files to a permanent folder first.
+
+3.  **Run the Game:** Open the newly created folder and double-click the `ANAHKENs Modular Snake Game.lnk` shortcut.
+
+4.  **Verify Functionality:**
+    *   The game should launch and be fully playable.
+    *   All assets (images, sounds, fonts) should load correctly.
+    *   Settings should be changeable and save correctly between sessions.
+    *   The high score should save. Check for the creation of `highscore.dat` and `settings.dat` in `%APPDATA%\ANAHKENsSnake`.
 
 ## License
 
