@@ -104,22 +104,28 @@ This project is set up to be easily bundled into a single executable using **PyI
     python -m pip install pyinstaller Pillow
     ```
 
-2.  **Run the PyInstaller command:**
-    Open a terminal in the project directory and run the following command. The `--add-data` and `--splash` flags are crucial for including all necessary assets.
-    The simplest way is to copy the entire `assets` folder. For the best visual quality, provide a multi-resolution `.ico` file for the icon.
+2.  **(Optional but Recommended) Clean Previous Builds:**
+    For the cleanest possible build, it's a good idea to remove the artifacts from previous compilations. Delete the following folders and file from your project directory if they exist:
+    *   `build/`
+    *   `dist/`
+    *   `ANAHKENs Modular Snake Game.spec` (or `main.spec`)
+
+3.  **Run the PyInstaller Command:**
+    Open a terminal in the project directory and run the command for your operating system. The `--clean` flag is added to ensure PyInstaller's cache is cleared, forcing a completely fresh build. The `--add-data` and `--splash` flags are crucial for including all necessary assets. For the best visual quality, provide a multi-resolution `.ico` file for the icon.
 
     ### For Windows:
     ***
     ```sh
-    py -3.14 -m PyInstaller --onefile --windowed --name "ANAHKENs Modular Snake Game" --icon="assets/images/icon.ico" --add-data "assets;assets" --splash "assets/images/splash_screen.png" main.py
+    py -3.14 -m PyInstaller --onefile --windowed --clean --name "ANAHKENs Modular Snake Game" --icon="assets/images/icon.ico" --add-data "assets;assets" --splash "assets/images/splash_screen.png" main.py
     ```
     ### For MacOS & Linux:
     *(Also if you don't have the `py` launcher installed)*
     ```sh
-    python -m PyInstaller --onefile --windowed --name "ANAHKENs Modular Snake Game" --icon="assets/images/icon.ico" --add-data "assets;assets" --splash "assets/images/splash_screen.png" main.py
+    python -m PyInstaller --onefile --windowed --clean --name "ANAHKENs Modular Snake Game" --icon="assets/images/icon.ico" --add-data "assets:assets" --splash "assets/images/splash_screen.png" main.py
     ```
+    *Note: The separator for `--add-data` is a semicolon (`;`) on Windows and a colon (`:`) on macOS/Linux.*
 
-3.  **Find your executable:**
+4.  **Find Your Executable:**
     PyInstaller will create a `dist` folder containing `ANAHKENs Modular Snake Game.exe`. This file can be shared and run on other Windows machines without needing Python or Pygame installed.
 
 ## License
