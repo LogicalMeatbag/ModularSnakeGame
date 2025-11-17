@@ -148,7 +148,7 @@ py -m PyInstaller --onefile --windowed --name "%ProductName%" --icon="assets/ima
 
 echo [BUILD] Modifying spec file to include version info...
 REM Now, add the version-file argument to the EXE call inside the .spec file.
-powershell -Command "(Get-Content '%ProductName%.spec') -replace 'exe = EXE(pyz,', 'exe = EXE(pyz, version=''version_info.txt'',' | Set-Content '%ProductName%.spec'"
+powershell -Command "(Get-Content '%ProductName%.spec') -replace 'exe = EXE\(pyz, ', 'exe = EXE(pyz, version=''version_info.txt'',' | Set-Content '%ProductName%.spec'"
 
 echo [BUILD] Building executable from modified spec file...
 REM Finally, run PyInstaller using the modified spec file.

@@ -21,6 +21,7 @@ dist/
 version_info.txt
 *.lnk
 *.zip
+*.sha256
 
 # --- IDE / Editor Specific ---
 # Ignore configuration folders from common editors like VS Code and JetBrains IDEs.
