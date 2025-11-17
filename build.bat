@@ -16,7 +16,7 @@ set "CurrentVersion=1.2.0"
 set "CompanyName=ANAHKEN"
 set "FileDescription=ANAHKENs Modular Snake Game"
 set "ProductName=ANAHKENs Modular Snake Game"
-set "LegalCopyright=Copyright (c) ANAHKEN. All rights reserved."
+set "LegalCopyright=Copyright (c) LogicalMeatbag on Github. All rights reserved."
 
 REM --- Step 0: Get Version Number from User ---
 echo.
