@@ -142,23 +142,22 @@ echo [BUILD] Version info file created.
 echo.
 
 REM --- Step 3: Run PyInstaller ---
-echo [BUILD] Generating PyInstaller spec file...
-REM First, generate the .spec file without the version info to avoid race conditions.
-py -m PyInstaller --onefile --windowed --name "%ProductName%" --icon="assets/images/icon.ico" --add-data "assets;assets" --splash "assets/images/splash_screen.png" --noconfirm main.py
+echo [BUILD] Building executable with PyInstaller...
+REM Run PyInstaller only ONCE, providing all arguments directly.
+REM This is more robust than modifying the .spec file after generation.
+py -m PyInstaller --onefile --windowed --name "%ProductName%" ^
+    --icon="assets/images/icon.ico" ^
+    --add-data "assets;assets" ^
+    --splash "assets/images/splash_screen.png" ^
+    --version-file "version_info.txt" ^
+    --noconfirm main.py
 
-echo [BUILD] Modifying spec file to include version info...
-REM Now, add the version-file argument to the EXE call inside the .spec file.
-powershell -Command "(Get-Content '%ProductName%.spec') -replace 'exe = EXE\(pyz, ', 'exe = EXE(pyz, version=''version_info.txt'',' | Set-Content '%ProductName%.spec'"
-
-echo [BUILD] Building executable from modified spec file...
-REM Finally, run PyInstaller using the modified spec file.
-py -m PyInstaller "%ProductName%.spec" --noconfirm
 if %errorlevel% neq 0 (
     echo [ERROR] PyInstaller failed to build the executable. Aborting.
     pause
     exit /b 1
 )
-echo [BUILD] PyInstaller build successful.
+echo [BUILD] Executable built successfully.
 echo.
 
 REM --- Step 4: Create the portable shortcut ---
@@ -199,6 +198,21 @@ del "%ChecksumFile%.tmp"
 echo [BUILD] Checksum file '%ChecksumFile%' created successfully.
 echo.
 
+REM --- Step 7: Clean up intermediate files ---
+echo [BUILD] Cleaning up intermediate build files...
+if exist "dist" ( rmdir /s /q "dist" )
+if exist "build" ( rmdir /s /q "build" )
+if exist "%ProductName%.spec" ( del "%ProductName%.spec" )
+if exist "version_info.txt" ( del "version_info.txt" )
+if exist "%ProductName%.lnk" ( del "%ProductName%.lnk" )
+echo [BUILD] Cleanup complete. All temporary files removed.
+echo.
+
 echo [SUCCESS] Build and packaging process complete!
+echo The following files have been created in your project root:
+echo   - %PackageName%.zip
+echo   - %ChecksumFile%
+echo.
+
 pause
 endlocal
