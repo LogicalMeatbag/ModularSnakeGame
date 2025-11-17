@@ -57,7 +57,6 @@ If you have a `.exe` version of the game:
     ```sh
     python main.py
     ```
-    *(Note: Thanks to a robust launcher script, you can actually run any of the project's `.py` files to start the game.)*
 
 ## Customization
 
