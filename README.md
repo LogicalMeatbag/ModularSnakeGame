@@ -130,6 +130,24 @@ This project is set up to be easily bundled into a single executable using **PyI
 4.  **Find Your Executable:**
     PyInstaller will create a `dist` folder containing `ANAHKENs Modular Snake Game.exe`. This file can be shared and run on other Windows machines without needing Python or Pygame installed.
 
+5.  **Create a Portable Shortcut (Windows Only):**
+    To avoid making users run a `.bat` file, you can generate a professional-looking `.lnk` shortcut.
+    *   In the project's root directory, find and double-click the `create_shortcut.vbs` script.
+    *   This will instantly create a new file named `ANAHKEN's Modular Snake Game.lnk` in the same directory. This is your new portable shortcut.
+
+6.  **Create a Distributable Package (Optional):**
+    To make it easy for others to download and play, you can create a `.zip` file. Your folder structure should look like this:
+    ```
+    ANAHKENs_Snake_Game_v1.0/
+    |-- ANAHKEN's Modular Snake Game.lnk         <-- The professional shortcut for users to click
+    +-- dist/
+    |   |-- ANAHKENs Modular Snake Game.exe
+    |   +-- [other files PyInstaller creates]
+    +-- assets/
+        +-- [all asset folders]
+    ```
+    Simply zip the `ANAHKENs_Snake_Game_v1.0` folder. Users can download, unzip, and double-click `ANAHKEN's Modular Snake Game.lnk` to play.
+
 ## License
 
 This project is open source and available under the MIT License.

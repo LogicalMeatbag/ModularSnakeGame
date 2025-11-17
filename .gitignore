@@ -18,3 +18,7 @@ dist/
 # VS Code specific
 .vscode/
 
+# Windows shortcuts
+*.vbs
+*.lnk
+
