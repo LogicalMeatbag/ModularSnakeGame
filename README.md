@@ -122,6 +122,17 @@ This project includes a fully automated build script that handles cleaning, comp
 
     This is the file you can share with others for them to play the game.
 
+### VS Code Integration (Recommended)
+
+This project is configured with VS Code Tasks for an integrated build experience. To get a convenient UI for these tasks:
+
+1.  **Install the "Task Explorer" Extension:** Open the Extensions view (`Ctrl+Shift+X`) in VS Code, search for `Task Explorer` by `spmeesseman`, and install it.
+
+2.  **Use the Task Explorer Sidebar:** A new checklist icon will appear in your activity bar. Click it to open a sidebar menu containing all the build commands (`Build: Interactive`, `Build: Patch Version`, etc.).
+
+3.  **Run Tasks with One Click:** You can now run any build task directly from this sidebar menu.
+
+
 ## Testing the Build
 
 After creating a `.zip` file with the `build.bat` script, it's crucial to test it in a clean environment to ensure it will work for other users.

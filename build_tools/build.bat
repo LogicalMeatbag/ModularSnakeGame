@@ -24,56 +24,49 @@ set "ProductName=ANAHKENs Modular Snake Game"
 set "LegalCopyright=Copyright (c) LogicalMeatbag on Github. All rights reserved."
 
 REM --- Step 0: Determine and Confirm Version Number ---
-:VersionSelectionLoop
-set "Version="
-set "VersionSource="
+:VersionLoop
+    set "Version="
+    REM Only check for command-line arguments on the first pass.
+    if not defined FirstPass (
+        if /i "%1"=="major" (
+            for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
+                set /a "major=%%a + 1"
+                set "Version=!major!.0.0"
+            )
+        ) else if /i "%1"=="minor" (
+            for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
+                set /a "minor=%%b + 1"
+                set "Version=%%a.!minor!.0"
+            )
+        ) else if /i "%1"=="patch" (
+            for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
+                set /a "patch=%%c + 1"
+                set "Version=%%a.%%b.!patch!"
+            )
+        )
+    )
+    set "FirstPass=true"
 
-if /i "%1"=="major" (
-    set "VersionSource=major"
-    for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
-        set /a "major=%%a + 1"
-        set "Version=!major!.0.0"
+    REM If no version was set by arguments, go to interactive mode.
+    if not defined Version (
+        echo.
+        echo The current version is set to %CurrentVersion%.
+        set /p "Version=Enter new version number (or press Enter to use %CurrentVersion%): "
+        if not defined Version set "Version=%CurrentVersion%"
     )
-) else if /i "%1"=="minor" (
-    set "VersionSource=minor"
-    for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
-        set /a "minor=%%b + 1"
-        set "Version=%%a.!minor!.0"
-    )
-) else if /i "%1"=="patch" (
-    set "VersionSource=patch"
-    for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
-        set /a "patch=%%c + 1"
-        set "Version=%%a.%%b.!patch!"
-    )
-) else (
-    set "VersionSource=interactive"
+
+    :ConfirmLoop
+    set "Confirm="
     echo.
-    echo The current version is set to %CurrentVersion%.
-    set /p "Version=Enter new version number (or press Enter to use %CurrentVersion%): "
-    if not defined Version set "Version=%CurrentVersion%"
-)
-
-:ConfirmVersion
-set "Confirm="
-echo.
-set /p "Confirm=You are about to build version '%Version%'. Is this correct? [Y/n]: "
-if /i "%Confirm%"=="Y" goto EndVersionSelection
-if /i "%Confirm%"=="" goto EndVersionSelection
-
-if /i "%Confirm%"=="N" (
-    if "%VersionSource%"=="interactive" (
-        echo [BUILD] Version rejected. Please enter the correct version.
-        goto VersionSelectionLoop
-    ) else (
-        echo [ERROR] Build aborted by user due to incorrect version from '%VersionSource%' argument.
-        pause
-        exit /b 1
+    set /p "Confirm=You are about to build version '%Version%'. Is this correct? [Y/n]: "
+    if /i "%Confirm%"=="Y" goto EndVersionSelection
+    if /i "%Confirm%"=="" goto EndVersionSelection
+    if /i "%Confirm%"=="N" (
+        echo [BUILD] Version rejected. Please enter the correct version manually.
+        goto VersionLoop
     )
-)
-
-echo [ERROR] Invalid input. Please enter 'Y' or 'N'.
-goto ConfirmVersion
+    echo [ERROR] Invalid input. Please enter 'Y' or 'N'.
+    goto ConfirmLoop
 
 :EndVersionSelection
 echo [BUILD] Using version: %Version%
