@@ -108,36 +108,38 @@ echo.
 
 REM --- Step 2: Generate Version Info File ---
 echo [BUILD] Generating version info file (version_info.txt)...
-(
-    echo # UTF-8
-    echo VSVersionInfo(
-    echo   ffi=FixedFileInfo(
-    echo     filevers=(%VersionTuple%),
-    echo     prodvers=(%VersionTuple%),
-    echo     mask=0x3f,
-    echo     flags=0x0,
-    echo     os=0x40004,
-    echo     type=0x1,
-    echo     subtype=0x0,
-    echo     date=(0, 0)
-    echo   ),
-    echo   kids=[
-    echo     StringFileInfo([
-    echo       StringTable(
-    echo         u'040904B0',
-    echo         [StringStruct(u'CompanyName', u'%CompanyName%'),
-    echo         StringStruct(u'FileDescription', u'%FileDescription%'),
-    echo         StringStruct(u'FileVersion', u'%Version%'),
-    echo         StringStruct(u'InternalName', u'ModularSnake'),
-    echo         StringStruct(u'LegalCopyright', u'%LegalCopyright%'),
-    echo         StringStruct(u'OriginalFilename', u'%ProductName%.exe'),
-    echo         StringStruct(u'ProductName', u'%ProductName%'),
-    echo         StringStruct(u'ProductVersion', u'%Version%')])
-    echo     ]),
-    echo     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
-    echo   ]
-    echo )
-) > version_info.txt
+REM Write the file line-by-line using append redirection (>>). This is more
+REM robust than using a single parenthesized block, as it avoids parsing
+REM issues with special characters like commas inside variables.
+echo # UTF-8 > version_info.txt
+echo VSVersionInfo( >> version_info.txt
+echo   ffi=FixedFileInfo( >> version_info.txt
+echo     filevers=(%VersionTuple%), >> version_info.txt
+echo     prodvers=(%VersionTuple%), >> version_info.txt
+echo     mask=0x3f, >> version_info.txt
+echo     flags=0x0, >> version_info.txt
+echo     OS=0x40004, >> version_info.txt
+echo     fileType=0x1, >> version_info.txt
+echo     subtype=0x0, >> version_info.txt
+echo     date=(0, 0) >> version_info.txt
+echo   ^), >> version_info.txt
+echo   kids=[ >> version_info.txt
+echo     StringFileInfo([ >> version_info.txt
+echo       StringTable( >> version_info.txt
+echo         u'040904B0', >> version_info.txt
+echo         [StringStruct(u'CompanyName', u'%CompanyName%'), >> version_info.txt
+echo         StringStruct(u'FileDescription', u'%FileDescription%'), >> version_info.txt
+echo         StringStruct(u'FileVersion', u'%Version%'), >> version_info.txt
+echo         StringStruct(u'InternalName', u'ModularSnake'), >> version_info.txt
+echo         StringStruct(u'LegalCopyright', u'%LegalCopyright%'), >> version_info.txt
+echo         StringStruct(u'OriginalFilename', u'%ProductName%.exe'), >> version_info.txt
+echo         StringStruct(u'ProductName', u'%ProductName%'), >> version_info.txt
+echo         StringStruct(u'ProductVersion', u'%Version%')]^) >> version_info.txt
+echo     ]), >> version_info.txt
+echo     VarFileInfo([VarStruct(u'Translation', [1033, 1200])]) >> version_info.txt
+echo   ] >> version_info.txt
+echo ) >> version_info.txt
+
 echo [BUILD] Version info file created.
 echo.
 
@@ -149,7 +151,7 @@ py -m PyInstaller --onefile --windowed --name "%ProductName%" ^
     --icon="assets/images/icon.ico" ^
     --add-data "assets;assets" ^
     --splash "assets/images/splash_screen.png" ^
-    --version-file "version_info.txt" ^
+    --version-file "%CD%\version_info.txt" ^
     --noconfirm main.py
 
 if %errorlevel% neq 0 (
