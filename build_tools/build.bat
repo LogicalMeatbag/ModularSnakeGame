@@ -170,7 +170,7 @@ echo.
 
 REM --- Step 4: Create the portable shortcut ---
 echo [BUILD] Creating portable Windows shortcut...
-cscript //nologo create_shortcut.vbs
+cscript //nologo "build_tools\create_shortcut.vbs"
 if not exist "%ProductName%.lnk" (
     echo [ERROR] Shortcut creation failed. Aborting.
     pause
