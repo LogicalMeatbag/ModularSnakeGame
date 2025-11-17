@@ -125,6 +125,8 @@ This project is set up to be easily bundled into a single executable using **PyI
     ```
     *Note: The separator for `--add-data` is a semicolon (`;`) on Windows and a colon (`:`) on macOS/Linux.*
 
+    **A Note on Splash Screens:** This project uses two splash screens. The `--splash` parameter displays a static image while the executable unpacks its files (before any Python code runs). After that, the game's own animated splash screen runs to show the progress of loading assets like sounds and fonts into memory.
+
 4.  **Find Your Executable:**
     PyInstaller will create a `dist` folder containing `ANAHKENs Modular Snake Game.exe`. This file can be shared and run on other Windows machines without needing Python or Pygame installed.
 
