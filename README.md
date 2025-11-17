@@ -87,9 +87,10 @@ For more advanced changes, you can edit the `settings.py` file to modify:
 *   `score_manager.py`: A utility module for loading and saving the obfuscated and compressed high score file (`highscore.dat`).
 *   `settings_manager.py`: A utility module for loading and saving the user's custom settings (`settings.dat`).
 *   `assets/`: A folder containing subdirectories for all game assets.
-*   `build.bat`: The automated Windows script to clean, build, and package the entire project.
-*   `create_shortcut.vbs`: A helper script used by `build.bat` to create the portable Windows shortcut.
 *   `.gitignore`: A configuration file that tells Git (version control) to ignore build artifacts and temporary files.
+*   `build_tools/`: A folder containing all scripts related to building and packaging the project.
+    *   `build.bat`: The automated Windows script to clean, build, and package the entire project.
+    *   `create_shortcut.vbs`: A helper script used by `build.bat` to create the portable Windows shortcut.
 
 ## Building from Source
 
@@ -103,10 +104,10 @@ This project includes a fully automated build script that handles cleaning, comp
     ```
 
 2.  **Configure the Build (Optional):**
-    Open the `build.bat` file in a text editor. At the top, you can change the default `CurrentVersion` variable before creating a new release.
+    Open the `build_tools/build.bat` file in a text editor. At the top, you can change the default `CurrentVersion` variable before creating a new release.
 
 3.  **Run the Automated Build Script:**
-    Simply double-click the `build.bat` file in the project's root directory.
+    Navigate into the `build_tools` folder and double-click the `build.bat` file.
 
     You will be prompted to enter a version number. You can type a new one (e.g., `1.2.1`) or press Enter to use the default version shown.
 

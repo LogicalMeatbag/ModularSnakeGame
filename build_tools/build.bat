@@ -1,5 +1,8 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
+
+REM --- Set working directory to the project root (one level up) ---
+cd /d "%~dp0.."
 
 REM ===============================================================================
 REM  Automated Build & Packaging Script for ANAHKEN's Modular Snake Game
@@ -9,7 +12,9 @@ REM 1. Cleans previous build artifacts.
 REM 2. Generates a version info file for the executable.
 REM 3. Runs PyInstaller to create the executable with embedded version info.
 REM 4. Runs the VBScript to create the portable shortcut.
-REM 5. Packages everything into a clean, versioned, distributable .zip file.
+REM 5. Includes documentation in the final package.
+REM 6. Packages everything into a clean, versioned, distributable .zip file.
+REM 7. Generates a SHA-256 checksum for the final package to ensure integrity.
 
 REM --- Configuration ---
 set "CurrentVersion=1.2.0"
@@ -18,11 +23,59 @@ set "FileDescription=ANAHKENs Modular Snake Game"
 set "ProductName=ANAHKENs Modular Snake Game"
 set "LegalCopyright=Copyright (c) LogicalMeatbag on Github. All rights reserved."
 
-REM --- Step 0: Get Version Number from User ---
+REM --- Step 0: Determine and Confirm Version Number ---
+:VersionSelectionLoop
+set "Version="
+set "VersionSource="
+
+if /i "%1"=="major" (
+    set "VersionSource=major"
+    for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
+        set /a "major=%%a + 1"
+        set "Version=!major!.0.0"
+    )
+) else if /i "%1"=="minor" (
+    set "VersionSource=minor"
+    for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
+        set /a "minor=%%b + 1"
+        set "Version=%%a.!minor!.0"
+    )
+) else if /i "%1"=="patch" (
+    set "VersionSource=patch"
+    for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
+        set /a "patch=%%c + 1"
+        set "Version=%%a.%%b.!patch!"
+    )
+) else (
+    set "VersionSource=interactive"
+    echo.
+    echo The current version is set to %CurrentVersion%.
+    set /p "Version=Enter new version number (or press Enter to use %CurrentVersion%): "
+    if not defined Version set "Version=%CurrentVersion%"
+)
+
+:ConfirmVersion
+set "Confirm="
 echo.
-echo The current version is set to %CurrentVersion%.
-set /p "Version=Enter new version number (or press Enter to use %CurrentVersion%): "
-if not defined Version set "Version=%CurrentVersion%"
+set /p "Confirm=You are about to build version '%Version%'. Is this correct? [Y/n]: "
+if /i "%Confirm%"=="Y" goto EndVersionSelection
+if /i "%Confirm%"=="" goto EndVersionSelection
+
+if /i "%Confirm%"=="N" (
+    if "%VersionSource%"=="interactive" (
+        echo [BUILD] Version rejected. Please enter the correct version.
+        goto VersionSelectionLoop
+    ) else (
+        echo [ERROR] Build aborted by user due to incorrect version from '%VersionSource%' argument.
+        pause
+        exit /b 1
+    )
+)
+
+echo [ERROR] Invalid input. Please enter 'Y' or 'N'.
+goto ConfirmVersion
+
+:EndVersionSelection
 echo [BUILD] Using version: %Version%
 
 REM Convert version string "1.0.0" to "1,0,0,0" for the version file
@@ -52,6 +105,10 @@ if exist "version_info.txt" (
 if exist "%ProductName%.lnk" (
     echo      - Removing old shortcut...
     del "%ProductName%.lnk"
+)
+if exist "*.zip" (
+    echo      - Removing old .zip packages...
+    del "*.zip" "*.sha256"
 )
 echo [BUILD] Cleaning complete.
 echo.
@@ -125,7 +182,7 @@ echo.
 REM --- Step 5: Package into a .zip file ---
 echo [BUILD] Packaging final distributable .zip file...
 set "PackageName=ANAHKENs_Snake_Game_Windows_v%Version%"
-powershell -Command "Compress-Archive -Path '.\dist', '.\%ProductName%.lnk' -DestinationPath '.\%PackageName%.zip' -Force" >nul 2>&1
+powershell -Command "Compress-Archive -Path '.\dist', '.\%ProductName%.lnk', '.\README.md', '.\LICENSE' -DestinationPath '.\%PackageName%.zip' -Force" >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to create .zip file. This can happen if PowerShell is restricted.
     echo [ERROR] Please check your system's script execution policy.
@@ -133,6 +190,20 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo [BUILD] Successfully created '%PackageName%.zip'.
+echo.
+
+REM --- Step 6: Generate Checksum for Verification ---
+echo [BUILD] Generating SHA-256 checksum for the package...
+set "ChecksumFile=%PackageName%.zip.sha256"
+certutil -hashfile "%PackageName%.zip" SHA256 > "%ChecksumFile%.tmp"
+if %errorlevel% neq 0 (
+    echo [ERROR] Failed to generate checksum file.
+    pause
+    exit /b 1
+)
+for /f "skip=1 tokens=*" %%i in ('type "%ChecksumFile%.tmp"') do echo %%i > "%ChecksumFile%"
+del "%ChecksumFile%.tmp"
+echo [BUILD] Checksum file '%ChecksumFile%' created successfully.
 echo.
 
 echo [SUCCESS] Build and packaging process complete!
