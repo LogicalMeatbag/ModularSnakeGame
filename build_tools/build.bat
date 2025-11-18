@@ -27,18 +27,22 @@ REM --- Step 0: Determine and Confirm Version Number ---
 :VersionLoop
     set "Version="
     REM Only check for command-line arguments on the first pass.
+    set "VersionSource=interactive"
     if not defined FirstPass (
         if /i "%1"=="major" (
+            set "VersionSource=major"
             for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
                 set /a "major=%%a + 1"
                 set "Version=!major!.0.0"
             )
         ) else if /i "%1"=="minor" (
+            set "VersionSource=minor"
             for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
                 set /a "minor=%%b + 1"
                 set "Version=%%a.!minor!.0"
             )
         ) else if /i "%1"=="patch" (
+            set "VersionSource=patch"
             for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
                 set /a "patch=%%c + 1"
                 set "Version=%%a.%%b.!patch!"
@@ -62,8 +66,14 @@ REM --- Step 0: Determine and Confirm Version Number ---
     if /i "%Confirm%"=="Y" goto EndVersionSelection
     if /i "%Confirm%"=="" goto EndVersionSelection
     if /i "%Confirm%"=="N" (
-        echo [BUILD] Version rejected. Please enter the correct version manually.
-        goto VersionLoop
+        if "%VersionSource%"=="interactive" (
+            echo [BUILD] Version rejected. Please enter the correct version manually.
+            goto VersionLoop
+        ) else (
+            echo [ERROR] Build aborted by user due to incorrect version from '%VersionSource%' argument.
+            pause
+            exit /b 1
+        )
     )
     echo [ERROR] Invalid input. Please enter 'Y' or 'N'.
     goto ConfirmLoop

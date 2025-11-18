@@ -28,5 +28,3 @@ oShellLink.Description = "Launches ANAHKENs Modular Snake Game"
 
 ' Save the shortcut file to disk.
 oShellLink.Save
-
-WScript.Echo "Shortcut 'ANAHKENs Modular Snake Game.lnk' created successfully in the project folder."
