@@ -94,49 +94,40 @@ def draw_score(surface, score, high_score):
     # Position relative to the game area, not the window
     surface.blit(score_surface, (settings.xOffset + 10, settings.yOffset + 10))
 
-def draw_main_menu(surface):
+def draw_main_menu(surface, selected_index=None):
     """Draws the main menu screen and returns rects for buttons."""
     win_w, win_h = surface.get_size()
     mouse_pos = pygame.mouse.get_pos()
+    buttons = {}
 
     # Title
     title_surface = settings.titleFont.render(settings.gameTitle, True, settings.snakeColor)
     title_rect = title_surface.get_rect(center=(win_w / 2, win_h * 0.25))
     surface.blit(title_surface, title_rect)
 
+    button_data = [('play', "Play", 0.5), ('settings', "Settings", 0.65), ('quit', "Quit", 0.8)]
+
     # Play Button
-    play_text = "Play"
-    play_surface = settings.scoreFont.render(play_text, True, settings.white)
-    play_rect = pygame.Rect(0, 0, play_surface.get_width() + 40, 50)
-    play_rect.center = (win_w / 2, win_h * 0.5)
-    play_color = settings.white if play_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    pygame.draw.rect(surface, play_color, play_rect, 2, 5)
-    play_surface = settings.scoreFont.render(play_text, True, play_color) # Re-render with hover color
-    surface.blit(play_surface, play_surface.get_rect(center=play_rect.center))
+    for i, (key, text, y_factor) in enumerate(button_data):
+        is_selected = (selected_index == i)
+        
+        text_surf = settings.scoreFont.render(text, True, settings.white)
+        button_rect = pygame.Rect(0, 0, text_surf.get_width() + 40, 50)
+        button_rect.center = (win_w / 2, win_h * y_factor)
+        buttons[key] = button_rect
 
-    # Settings Button
-    settings_text = "Settings"
-    settings_surface = settings.scoreFont.render(settings_text, True, settings.white)
-    settings_rect = pygame.Rect(0, 0, settings_surface.get_width() + 40, 50)
-    settings_rect.center = (win_w / 2, win_h * 0.65)
-    settings_color = settings.white if settings_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    pygame.draw.rect(surface, settings_color, settings_rect, 2, 5)
-    settings_surface = settings.scoreFont.render(settings_text, True, settings_color) # Re-render with hover color
-    surface.blit(settings_surface, settings_surface.get_rect(center=settings_rect.center))
+        is_hovered = button_rect.collidepoint(mouse_pos)
+        
+        # A selected button is always white, otherwise check for hover.
+        color = settings.white if is_selected or is_hovered else settings.uiElementColor
+        
+        pygame.draw.rect(surface, color, button_rect, 2, 5)
+        text_surf = settings.scoreFont.render(text, True, color) # Re-render with hover/select color
+        surface.blit(text_surf, text_surf.get_rect(center=button_rect.center))
 
-    # Quit Button
-    quit_text = "Quit"
-    quit_surface = settings.scoreFont.render(quit_text, True, settings.white)
-    quit_rect = pygame.Rect(0, 0, quit_surface.get_width() + 40, 50)
-    quit_rect.center = (win_w / 2, win_h * 0.8)
-    quit_color = settings.white if quit_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    pygame.draw.rect(surface, quit_color, quit_rect, 2, 5)
-    quit_surface = settings.scoreFont.render(quit_text, True, quit_color) # Re-render with hover color
-    surface.blit(quit_surface, quit_surface.get_rect(center=quit_rect.center))
+    return buttons
 
-    return {'play': play_rect, 'settings': settings_rect, 'quit': quit_rect}
-
-def draw_settings_menu(surface, current_color_name):
+def draw_settings_menu(surface, current_color_name, selected_key=None):
     """Draws the settings menu screen and returns button rects."""
     win_w, win_h = surface.get_size()
     buttons = {} # Initialize the buttons dictionary
@@ -167,12 +158,12 @@ def draw_settings_menu(surface, current_color_name):
 
     arrow_offset = 100
     left_arrow_rect = pygame.Rect(0, 0, 50, 50); left_arrow_rect.center = (col1_x - arrow_offset, y_pos - 30)
-    left_arrow_color = settings.white if left_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    left_arrow_color = settings.white if left_arrow_rect.collidepoint(mouse_pos) or selected_key == 'left' else settings.uiElementColor
     surface.blit(settings.scoreFont.render("<", True, left_arrow_color), settings.scoreFont.render("<", True, left_arrow_color).get_rect(center=left_arrow_rect.center))
     buttons['left'] = left_arrow_rect
 
     right_arrow_rect = pygame.Rect(0, 0, 50, 50); right_arrow_rect.center = (col1_x + arrow_offset, y_pos - 30)
-    right_arrow_color = settings.white if right_arrow_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    right_arrow_color = settings.white if right_arrow_rect.collidepoint(mouse_pos) or selected_key == 'right' else settings.uiElementColor
     surface.blit(settings.scoreFont.render(">", True, right_arrow_color), settings.scoreFont.render(">", True, right_arrow_color).get_rect(center=right_arrow_rect.center))
     buttons['right'] = right_arrow_rect
 
@@ -182,7 +173,7 @@ def draw_settings_menu(surface, current_color_name):
         customize_surf = settings.smallFont.render(customize_text, True, settings.white)
         customize_rect = pygame.Rect(0, 0, customize_surf.get_width() + 30, 40)
         customize_rect.center = (col1_x, y_pos)
-        customize_color = settings.white if customize_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        customize_color = settings.white if customize_rect.collidepoint(mouse_pos) or selected_key == 'customize_button' else settings.uiElementColor
         pygame.draw.rect(surface, customize_color, customize_rect, 2, 5)
         customize_surf = settings.smallFont.render(customize_text, True, customize_color)
         surface.blit(customize_surf, customize_surf.get_rect(center=customize_rect.center))
@@ -197,7 +188,7 @@ def draw_settings_menu(surface, current_color_name):
                        column_width / 2, (col2_x - 10, y_pos), right_align=True)
 
     vsync_box_rect = pygame.Rect(0, 0, 30, 30); vsync_box_rect.midleft = (col2_x + 10, y_pos)
-    vsync_box_color = settings.white if vsync_box_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    vsync_box_color = settings.white if vsync_box_rect.collidepoint(mouse_pos) or selected_key == 'vsync_toggle' else settings.uiElementColor
     pygame.draw.rect(surface, vsync_box_color, vsync_box_rect, 2, 3)
     if settings.vsync:
         pygame.draw.lines(surface, settings.snakeColor, False, [(vsync_box_rect.left + 5, vsync_box_rect.centery), (vsync_box_rect.centerx - 2, vsync_box_rect.bottom - 5), (vsync_box_rect.right - 5, vsync_box_rect.top + 5)], 3)
@@ -209,7 +200,7 @@ def draw_settings_menu(surface, current_color_name):
                        column_width / 2, (col2_x - 10, y_pos), right_align=True)
 
     dec_rect = pygame.Rect(0, 0, 40, 30); dec_rect.midleft = (col2_x + 10, y_pos)
-    dec_color = settings.white if dec_rect.collidepoint(mouse_pos) and not settings.vsync else settings.uiElementColor
+    dec_color = settings.white if (dec_rect.collidepoint(mouse_pos) or selected_key == 'dec_fps') and not settings.vsync else settings.uiElementColor
     pygame.draw.rect(surface, dec_color, dec_rect, 2, 3)
     surface.blit(settings.smallFont.render("-", True, dec_color), settings.smallFont.render("-", True, dec_color).get_rect(center=dec_rect.center))
     buttons['dec_fps'] = dec_rect
@@ -218,7 +209,7 @@ def draw_settings_menu(surface, current_color_name):
     surface.blit(val_surf, val_surf.get_rect(center=(dec_rect.right + 40, y_pos)))
 
     inc_rect = pygame.Rect(0, 0, 40, 30); inc_rect.midleft = (dec_rect.right + 80, y_pos)
-    inc_color = settings.white if inc_rect.collidepoint(mouse_pos) and not settings.vsync else settings.uiElementColor
+    inc_color = settings.white if (inc_rect.collidepoint(mouse_pos) or selected_key == 'inc_fps') and not settings.vsync else settings.uiElementColor
     pygame.draw.rect(surface, inc_color, inc_rect, 2, 3)
     surface.blit(settings.smallFont.render("+", True, inc_color), settings.smallFont.render("+", True, inc_color).get_rect(center=inc_rect.center))
     buttons['inc_fps'] = inc_rect
@@ -228,7 +219,7 @@ def draw_settings_menu(surface, current_color_name):
                        column_width / 2, (col2_x - 10, y_pos), right_align=True)
 
     fps_box_rect = pygame.Rect(0, 0, 30, 30); fps_box_rect.midleft = (col2_x + 10, y_pos)
-    fps_box_color = settings.white if fps_box_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    fps_box_color = settings.white if fps_box_rect.collidepoint(mouse_pos) or selected_key == 'fps_toggle' else settings.uiElementColor
     pygame.draw.rect(surface, fps_box_color, fps_box_rect, 2, 3)
     if settings.showFps:
         pygame.draw.lines(surface, settings.snakeColor, False, [(fps_box_rect.left + 5, fps_box_rect.centery), (fps_box_rect.centerx - 2, fps_box_rect.bottom - 5), (fps_box_rect.right - 5, fps_box_rect.top + 5)], 3)
@@ -249,17 +240,29 @@ def draw_settings_menu(surface, current_color_name):
 
     keybinds_rect = pygame.Rect(0, 0, button_width, button_height)
     keybinds_rect.center = (col3_x, y_pos)
-    keybindsColor = settings.white if keybinds_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    keybindsColor = settings.white if keybinds_rect.collidepoint(mouse_pos) or selected_key == 'keybinds' else settings.uiElementColor
     pygame.draw.rect(surface, keybindsColor, keybinds_rect, 2, 5)
     _draw_wrapped_text(surface, keybinds_text, settings.scoreFont, keybindsColor, button_width - 10, keybinds_rect.center)
     buttons['keybinds'] = keybinds_rect
+
+    y_pos += button_height + 15 # Spacing
+    controller_text = "Controller Settings"
+    wrapped_lines_controller = textwrap.wrap(controller_text, width=wrap_at)
+    button_height_controller = len(wrapped_lines_controller) * settings.scoreFont.get_height() + 20
+
+    controller_rect = pygame.Rect(0, 0, button_width, button_height_controller)
+    controller_rect.center = (col3_x, y_pos)
+    controllerColor = settings.white if controller_rect.collidepoint(mouse_pos) or selected_key == 'controller_settings' else settings.uiElementColor
+    pygame.draw.rect(surface, controllerColor, controller_rect, 2, 5)
+    _draw_wrapped_text(surface, controller_text, settings.scoreFont, controllerColor, button_width - 10, controller_rect.center)
+    buttons['controller_settings'] = controller_rect
 
     y_pos += button_height / 2 + 40 # Adjusted spacing
     label_height = _draw_wrapped_text(surface, "Debug Mode:", settings.scoreFont, settings.white,
                        column_width / 2, (col3_x - 10, y_pos), right_align=True)
 
     debug_box_rect = pygame.Rect(0, 0, 30, 30); debug_box_rect.midleft = (col3_x + 10, y_pos)
-    debug_box_color = settings.white if debug_box_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    debug_box_color = settings.white if debug_box_rect.collidepoint(mouse_pos) or selected_key == 'debug_toggle' else settings.uiElementColor
     pygame.draw.rect(surface, debug_box_color, debug_box_rect, 2, 3)
     if settings.debugMode:
         pygame.draw.lines(surface, settings.snakeColor, False, [(debug_box_rect.left + 5, debug_box_rect.centery), (debug_box_rect.centerx - 2, debug_box_rect.bottom - 5), (debug_box_rect.right - 5, debug_box_rect.top + 5)], 3)
@@ -271,7 +274,7 @@ def draw_settings_menu(surface, current_color_name):
         debug_surf = settings.smallFont.render(debug_text, True, settings.white)
         debug_rect = pygame.Rect(0, 0, debug_surf.get_width() + 20, 40)
         debug_rect.center = (col3_x, y_pos)
-        debug_color = settings.white if debug_rect.collidepoint(mouse_pos) else settings.uiElementColor
+        debug_color = settings.white if debug_rect.collidepoint(mouse_pos) or selected_key == 'debug_menu' else settings.uiElementColor
         pygame.draw.rect(surface, debug_color, debug_rect, 2, 5)
         debug_surf = settings.smallFont.render(debug_text, True, debug_color)
         surface.blit(debug_surf, debug_surf.get_rect(center=debug_rect.center))
@@ -284,7 +287,7 @@ def draw_settings_menu(surface, current_color_name):
     saveSurface = settings.scoreFont.render(saveText, True, settings.white)
     save_rect = pygame.Rect(0, 0, saveSurface.get_width() + 40, 50)
     save_rect.center = (win_w / 2, win_h * 0.92) # Positioned lower
-    saveColor = settings.white if save_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    saveColor = settings.white if save_rect.collidepoint(mouse_pos) or selected_key == 'save' else settings.uiElementColor
     pygame.draw.rect(surface, saveColor, save_rect, 2, 5)
     saveSurface = settings.scoreFont.render(saveText, True, saveColor) # Re-render with hover color
     surface.blit(saveSurface, saveSurface.get_rect(center=save_rect.center))
@@ -292,7 +295,58 @@ def draw_settings_menu(surface, current_color_name):
 
     return buttons
 
-def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
+def draw_controller_settings_menu(surface, current_binds, selected_action, selected_key=None):
+    """Draws the controller binding configuration screen."""
+    win_w, win_h = surface.get_size()
+    mouse_pos = pygame.mouse.get_pos()
+    buttons = {}
+
+    # Title
+    title_surface = settings.titleFont.render("Controller Settings", True, settings.white)
+    surface.blit(title_surface, title_surface.get_rect(center=(win_w / 2, win_h * 0.1)))
+
+    # Define the actions to be displayed
+    actions = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'CONFIRM', 'CANCEL', 'PAUSE', 'SETTINGS']
+    
+    y_pos = win_h * 0.25
+    for action in actions:
+        # Action Label (e.g., "UP")
+        action_surface = settings.scoreFont.render(f"{action}:", True, settings.white)
+        surface.blit(action_surface, action_surface.get_rect(midright=(win_w / 2 - 20, y_pos)))
+
+        # Bound Input Name Button
+        bound_input_name = current_binds.get(action, "Not Set").replace("_", " ").title()
+
+        if selected_action == action:
+            bound_input_name = "Press any button/axis..."
+        
+        key_surface_render = settings.smallFont.render(bound_input_name, True, settings.white)
+        min_width = 350
+        button_width = max(min_width, key_surface_render.get_width() + 40)
+        key_rect = pygame.Rect(0, 0, button_width, 50)
+        key_rect.midleft = (win_w / 2, y_pos)
+        buttons[action] = key_rect
+
+        is_hovered = key_rect.collidepoint(mouse_pos)
+        is_selected = selected_action == action or selected_key == action
+        key_color = settings.snakeColor if is_selected else (settings.white if is_hovered else settings.uiElementColor)
+        pygame.draw.rect(surface, key_color, key_rect, 2, 5)
+        key_surface_render = settings.smallFont.render(bound_input_name, True, key_color)
+        surface.blit(key_surface_render, key_surface_render.get_rect(center=key_rect.center))
+        y_pos += 65
+
+    # Save & Back Button
+    save_rect = pygame.Rect(0, 0, 200, 50)
+    save_rect.center = (win_w / 2, win_h * 0.9) # Position it near the bottom
+    save_color = settings.white if save_rect.collidepoint(mouse_pos) or selected_key == 'save' else settings.uiElementColor
+    pygame.draw.rect(surface, save_color, save_rect, 2, 5)
+    save_surface = settings.scoreFont.render("Save & Back", True, save_color)
+    surface.blit(save_surface, save_surface.get_rect(center=save_rect.center))
+    buttons['save'] = save_rect
+
+    return buttons
+
+def draw_keybind_settings_menu(surface, current_keybinds, selected_action, selected_key=None):
     """Draws the keybinding configuration screen."""
     win_w, win_h = surface.get_size()
     mouse_pos = pygame.mouse.get_pos()
@@ -329,7 +383,7 @@ def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
 
         # Highlight if selected or hovered
         is_hovered = key_rect.collidepoint(mouse_pos)
-        is_selected = selected_action == action
+        is_selected = selected_action == action or selected_key == action
         key_color = settings.snakeColor if is_selected else (settings.white if is_hovered else settings.uiElementColor)
         pygame.draw.rect(surface, key_color, key_rect, 2, 5)
         key_surface_render = settings.smallFont.render(key_text, True, key_color) # Re-render with color
@@ -339,7 +393,7 @@ def draw_keybind_settings_menu(surface, current_keybinds, selected_action):
     # Save Button
     save_rect = pygame.Rect(0, 0, 200, 50) # This one can be fixed as it's just an icon/simple text
     save_rect.center = (win_w / 2, win_h * 0.85)
-    save_color = settings.white if save_rect.collidepoint(mouse_pos) else settings.uiElementColor
+    save_color = settings.white if save_rect.collidepoint(mouse_pos) or selected_key == 'save' else settings.uiElementColor
     pygame.draw.rect(surface, save_color, save_rect, 2, 5)
     save_surface = settings.scoreFont.render("Save & Back", True, save_color)
     surface.blit(save_surface, save_surface.get_rect(center=save_rect.center))
@@ -430,44 +484,38 @@ def draw_custom_color_menu(surface, temp_color, editing_component=None, input_st
 
     return buttons
 
-def draw_game_over_screen(surface, score, high_score):
+def draw_game_over_screen(surface, score, high_score, selected_index=None):
     """Draws the game over screen and returns button rects."""
     win_w, win_h = surface.get_size() # Use the full window for menu centering
     mouse_pos = pygame.mouse.get_pos()
+    buttons = {}
 
     # "Game Over!" text
     game_over_surface = settings.titleFont.render('Game Over!', True, settings.gameOverColor)
-    game_over_rect = game_over_surface.get_rect()
-    game_over_rect.midtop = (win_w / 2, win_h / 4)
+    game_over_rect = game_over_surface.get_rect(midtop=(win_w / 2, win_h / 4))
 
     # Final score
     final_score_surface = settings.scoreFont.render(f'Final Score: {score}', True, settings.white)
-    final_score_rect = final_score_surface.get_rect()
-    final_score_rect.midtop = (win_w / 2, win_h / 2.5)
+    final_score_rect = final_score_surface.get_rect(midtop=(win_w / 2, win_h / 2.5))
     
     surface.blit(game_over_surface, game_over_rect)
     surface.blit(final_score_surface, final_score_rect)
 
-    # Restart Button
-    restart_text = "Restart"
-    restart_surface = settings.scoreFont.render(restart_text, True, settings.white)
-    restart_rect = pygame.Rect(0, 0, restart_surface.get_width() + 40, 50)
-    restart_rect.center = (win_w / 2, win_h * 0.65)
-    restart_color = settings.white if restart_rect.collidepoint(mouse_pos) else settings.uiElementColor
-    pygame.draw.rect(surface, restart_color, restart_rect, 2, 5)
-    restart_surface = settings.scoreFont.render(restart_text, True, restart_color) # Re-render
-    surface.blit(restart_surface, restart_surface.get_rect(center=restart_rect.center))
+    button_data = [('restart', "Restart", 0.65), ('mainMenu', "Main Menu", 0.8)]
 
-    main_menu_text = "Main Menu"
-    main_menu_surface = settings.scoreFont.render(main_menu_text, True, settings.white)
-    mainMenuRect = pygame.Rect(0, 0, main_menu_surface.get_width() + 40, 50)
-    mainMenuRect.center = (win_w / 2, win_h * 0.8)
-    mainMenuColor = settings.white if mainMenuRect.collidepoint(mouse_pos) else settings.uiElementColor
-    pygame.draw.rect(surface, mainMenuColor, mainMenuRect, 2, 5)
-    main_menu_surface = settings.scoreFont.render(main_menu_text, True, mainMenuColor) # Re-render
-    surface.blit(main_menu_surface, main_menu_surface.get_rect(center=mainMenuRect.center))
+    for i, (key, text, y_factor) in enumerate(button_data):
+        is_selected = (selected_index == i)
+        text_surf = settings.scoreFont.render(text, True, settings.white)
+        button_rect = pygame.Rect(0, 0, text_surf.get_width() + 40, 50)
+        button_rect.center = (win_w / 2, win_h * y_factor)
+        buttons[key] = button_rect
+        is_hovered = button_rect.collidepoint(mouse_pos)
+        color = settings.white if is_selected or is_hovered else settings.uiElementColor
+        pygame.draw.rect(surface, color, button_rect, 2, 5)
+        text_surf = settings.scoreFont.render(text, True, color)
+        surface.blit(text_surf, text_surf.get_rect(center=button_rect.center))
 
-    return {'restart': restart_rect, 'mainMenu': mainMenuRect}
+    return buttons
 
 def draw_event_notification(surface, event_name):
     """Draws a large notification for a random event."""

@@ -71,6 +71,7 @@ class GameState(Enum):
     EVENT_COUNTDOWN = 8
     DEBUG_SETTINGS = 9
     DYING = 10
+    CONTROLLER_SETTINGS = 11
     
 def update_dynamic_dimensions(window_surface):
     """
@@ -168,7 +169,22 @@ def check_secret_code(sequence: list[int]) -> bool:
     # If we get here, it's a match.
     return True
 
-def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func, sequence):
+def get_controller_input_string(event):
+    """Helper to convert a Pygame controller event into a consistent string format."""
+    if event.type == pygame.JOYBUTTONDOWN:
+        return f"button_{event.button}"
+    if event.type == pygame.JOYHATMOTION:
+        # Hat motion is unique; we create separate strings for each direction
+        if event.value[0] == 1: return f"hat_{event.hat}_x_1"
+        if event.value[0] == -1: return f"hat_{event.hat}_x_-1"
+        if event.value[1] == 1: return f"hat_{event.hat}_y_1"
+        if event.value[1] == -1: return f"hat_{event.hat}_y_-1"
+    if event.type == pygame.JOYAXISMOTION:
+        # We now handle axis motion statefully in the main loop, not via events.
+        return None
+    return None
+
+def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func, sequence, selected_index):
     """Handles events for the MAIN_MENU state."""
     # This string is a Base64-encoded representation of the secret code.
     # It uses a custom format: steps are separated by ';', and alternate keys
@@ -176,8 +192,12 @@ def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func,
     # Sequence: UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT, B, A
     # NOTE: This string should be replaced with the one you manually encode.
 
+    new_state = GameState.MAIN_MENU
+    new_selected_index = selected_index
+    input_str = get_controller_input_string(event)
+
     if event.type == pygame.KEYDOWN:
-        # --- Secret Code Logic ---
+        # --- Secret Code Input ---
         # Append the new key and keep the sequence at a manageable length.
         sequence.append(event.key)
         if len(sequence) > 10: # Length of the secret code
@@ -191,24 +211,95 @@ def handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game_func,
                 settings_manager.save_settings(settings.settingsFile, settings.userSettings)
                 settings.eatSound.play() # Play a confirmation sound
 
-        if event.key == pygame.K_RETURN:
-            return start_new_game_func()
-        elif event.key == pygame.K_s:
-            return GameState.COLOR_SETTINGS
+        if event.key in [pygame.K_UP, pygame.K_w]:
+            new_selected_index = (selected_index - 1) % 3
+        elif event.key in [pygame.K_DOWN, pygame.K_s]:
+            new_selected_index = (selected_index + 1) % 3
+        elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+            # Simulate a click on the selected button
+            if selected_index == 0: new_state = start_new_game_func()
+            elif selected_index == 1: new_state = GameState.COLOR_SETTINGS
+            elif selected_index == 2: return None, -1 # Quit
+
     elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         if menu_buttons['play'].collidepoint(mouse_pos):
-            return start_new_game_func()
+            new_state = start_new_game_func()
         elif menu_buttons['settings'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
-            return GameState.COLOR_SETTINGS
+            new_state = GameState.COLOR_SETTINGS
         elif menu_buttons['quit'].collidepoint(mouse_pos):
-            return None # Signal to quit
-    return GameState.MAIN_MENU # No state change
+            return None, -1 # Signal to quit
+    elif input_str:
+        binds = settings.userSettings['controllerBinds']
+        if input_str == binds.get('CONFIRM'):
+            if new_selected_index == 0: new_state = start_new_game_func()
+            elif new_selected_index == 1: new_state = GameState.COLOR_SETTINGS
+            elif new_selected_index == 2: return None, -1 # Quit
+        elif input_str == binds.get('UP'):
+            new_selected_index = (selected_index - 1) % 3
+        elif input_str == binds.get('DOWN'):
+            new_selected_index = (selected_index + 1) % 3
+    return new_state, new_selected_index
 
-def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names, current_color_index):
+def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names, current_color_index, selected_key):
     """Handles events for the COLOR_SETTINGS state. Returns new state and color index."""
     new_state = GameState.COLOR_SETTINGS
     new_color_index = current_color_index
+    input_str = get_controller_input_string(event)
+    new_selected_key = selected_key
+    nav_grid = [
+        ['left',              'vsync_toggle', 'keybinds'],
+        ['right',             'fps_toggle',   'controller_settings'],
+        ['customize_button',  'dec_fps',      'debug_toggle'],
+        [None,                'inc_fps',      'debug_menu'],
+        ['save',               'save',         'save']
+    ]
+
+    # --- [FIX] Initialize grid position before any event handling ---
+    # This ensures `current_pos` is never None when `move_in_grid` is called.
+    # --- [REFACTOR] Grid-based Navigation ---
+    # This 2D list represents the visual layout of the settings menu.
+    # `None` is used as a placeholder for empty spots.
+    # Find current position in the grid
+    current_pos = None
+    for r, row in enumerate(nav_grid):
+        for c, item in enumerate(row):
+            if item == selected_key:
+                current_pos = [r, c]
+                break
+        if current_pos:
+            break
+    if not current_pos:
+        current_pos = [0, 0] # Default to top-left if not found
+
+    def move_in_grid(pos, dr, dc):
+        """Helper to find the next valid button in the grid."""
+        new_r, new_c = pos[0] + dr, pos[1] + dc
+        # Wrap around rows and columns
+        new_r %= len(nav_grid)
+        new_c %= len(nav_grid[0])
+        # Find the next non-None item
+        while nav_grid[new_r][new_c] is None:
+            new_r = (new_r + dr) % len(nav_grid)
+        return nav_grid[new_r][new_c]
+
+    def perform_action(action_key):
+        nonlocal new_state, new_color_index
+        if action_key == 'left': new_color_index = (current_color_index - 1) % len(color_names)
+        elif action_key == 'right': new_color_index = (current_color_index + 1) % len(color_names)
+        elif action_key == 'customize_button': new_state = GameState.CUSTOM_COLOR_SETTINGS
+        elif action_key == 'vsync_toggle':
+            settings.vsync = not settings.vsync
+            settings.window = pygame.display.set_mode(settings.window.get_size(), pygame.RESIZABLE | pygame.DOUBLEBUF, vsync=1 if settings.vsync else 0)
+        elif action_key == 'dec_fps' and not settings.vsync: settings.maxFps = max(30, settings.maxFps - 12)
+        elif action_key == 'inc_fps' and not settings.vsync: settings.maxFps = min(360, settings.maxFps + 12)
+        elif action_key == 'fps_toggle': settings.showFps = not settings.showFps
+        elif action_key == 'keybinds': new_state = GameState.KEYBIND_SETTINGS
+        elif action_key == 'controller_settings': new_state = GameState.CONTROLLER_SETTINGS
+        elif action_key == 'debug_toggle': settings.debugMode = not settings.debugMode
+        elif action_key == 'debug_menu': new_state = GameState.DEBUG_SETTINGS
+        elif action_key == 'save': new_state = GameState.MAIN_MENU
+        settings.buttonClickSound.play()
 
     if event.type == pygame.KEYDOWN:
         if event.key == pygame.K_RIGHT:
@@ -218,7 +309,24 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
         elif event.key == pygame.K_RETURN or event.key == pygame.K_ESCAPE:
             settings.userSettings["snakeColorName"] = color_names[current_color_index]
             settings_manager.save_settings(settings.settingsFile, settings.userSettings)
-            new_state = GameState.MAIN_MENU
+            perform_action('save')
+    elif input_str:
+        binds = settings.userSettings['controllerBinds']
+        if input_str == binds.get('UP'): new_selected_key = move_in_grid(current_pos, -1, 0)
+        elif input_str == binds.get('DOWN'): new_selected_key = move_in_grid(current_pos, 1, 0)
+        elif input_str == binds.get('LEFT'):
+            # Special case: if on color arrows, change color instead of navigating
+            if new_selected_key in ['left', 'right']: perform_action('left')
+            else: new_selected_key = move_in_grid(current_pos, 0, -1)
+        elif input_str == binds.get('RIGHT'):
+            if new_selected_key in ['left', 'right']: perform_action('right')
+            else: new_selected_key = move_in_grid(current_pos, 0, 1)
+        elif input_str == binds.get('CONFIRM'):
+            if new_selected_key:
+                perform_action(new_selected_key)
+        elif input_str == binds.get('CANCEL'):
+            perform_action('save') # Treat cancel as saving and going back
+
     elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         if settings_buttons['left'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
@@ -229,6 +337,9 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
         elif settings_buttons['keybinds'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
             new_state = GameState.KEYBIND_SETTINGS
+        elif settings_buttons.get('controller_settings') and settings_buttons['controller_settings'].collidepoint(mouse_pos):
+            settings.buttonClickSound.play()
+            new_state = GameState.CONTROLLER_SETTINGS
         elif settings_buttons['debug_toggle'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
             settings.debugMode = not settings.debugMode
@@ -270,19 +381,65 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
     if new_color_index != current_color_index:
         update_snake_color_from_name(color_names[new_color_index])
 
-    return new_state, new_color_index
+    if new_state == GameState.MAIN_MENU: # If we are exiting, save everything
+        settings.userSettings["snakeColorName"] = color_names[current_color_index]
+        settings.userSettings["showFps"] = settings.showFps
+        settings.userSettings["vsync"] = settings.vsync
+        settings.userSettings["maxFps"] = settings.maxFps
+        settings.userSettings["debugMode"] = settings.debugMode
+        settings_manager.save_settings(settings.settingsFile, settings.userSettings)
 
-def handle_keybind_settings_events(event, mouse_pos, keybind_buttons, temp_keybinds, selected_action):
+    return new_state, new_color_index, new_selected_key
+
+def handle_keybind_settings_events(event, mouse_pos, keybind_buttons, temp_keybinds, selected_action, selected_key):
     """Handles events for KEYBIND_SETTINGS. Returns new state and selected action."""
     new_state = GameState.KEYBIND_SETTINGS
     new_selected_action = selected_action
+    new_selected_key = selected_key
+
+    # --- Grid-based Navigation ---
+    nav_grid = [
+        ['UP', 'DOWN'],
+        ['LEFT', 'RIGHT'],
+        ['save', 'save']
+    ]
+    current_pos = None
+    for r, row in enumerate(nav_grid):
+        for c, item in enumerate(row):
+            if item == selected_key:
+                current_pos = [r, c]; break
+        if current_pos: break
+    if not current_pos: current_pos = [0, 0]
+
+    def move_in_grid(pos, dr, dc):
+        new_r, new_c = (pos[0] + dr) % len(nav_grid), (pos[1] + dc) % len(nav_grid[0])
+        return nav_grid[new_r][new_c]
+
+    input_str = get_controller_input_string(event)
 
     if event.type == pygame.KEYDOWN:
         if selected_action:
             temp_keybinds[selected_action][0] = event.key
             new_selected_action = None
         elif event.key == pygame.K_ESCAPE:
-            new_state = GameState.COLOR_SETTINGS
+            new_state = GameState.COLOR_SETTINGS # Exit on escape
+    elif input_str:
+        binds = settings.userSettings['controllerBinds']
+        if not selected_action:
+            if input_str == binds.get('UP'): new_selected_key = move_in_grid(current_pos, -1, 0)
+            elif input_str == binds.get('DOWN'): new_selected_key = move_in_grid(current_pos, 1, 0)
+            elif input_str == binds.get('LEFT'): new_selected_key = move_in_grid(current_pos, 0, -1)
+            elif input_str == binds.get('RIGHT'): new_selected_key = move_in_grid(current_pos, 0, 1)
+            elif input_str == binds.get('CONFIRM'):
+                if new_selected_key == 'save':
+                    new_state = GameState.COLOR_SETTINGS
+                else:
+                    new_selected_action = new_selected_key
+            elif input_str == binds.get('CANCEL'):
+                new_state = GameState.COLOR_SETTINGS
+        else: # An action is selected for rebinding
+            if input_str == binds.get('CANCEL'):
+                new_selected_action = None # Cancel rebinding
     elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         if selected_action:
             new_selected_action = None
@@ -299,7 +456,82 @@ def handle_keybind_settings_events(event, mouse_pos, keybind_buttons, temp_keybi
                         settings.buttonClickSound.play()
                         new_selected_action = action
                     break
-    return new_state, new_selected_action
+    
+    if new_state != GameState.KEYBIND_SETTINGS: # If exiting
+        settings.keybinds = temp_keybinds
+        settings.userSettings["keybinds"] = temp_keybinds
+        settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+
+    return new_state, new_selected_action, new_selected_key
+
+def handle_controller_settings_events(event, mouse_pos, buttons, temp_binds, selected_action, selected_key):
+    """Handles events for CONTROLLER_SETTINGS. Returns new state and selected action."""
+    new_state = GameState.CONTROLLER_SETTINGS
+    new_selected_action = selected_action
+    input_str = get_controller_input_string(event)
+    new_selected_key = selected_key
+
+    # --- Grid-based Navigation ---
+    nav_grid = [
+        ['UP', 'CONFIRM'],
+        ['DOWN', 'CANCEL'],
+        ['LEFT', 'PAUSE'],
+        ['RIGHT', 'SETTINGS'],
+        ['save', 'save']
+    ]
+    current_pos = None
+    for r, row in enumerate(nav_grid):
+        for c, item in enumerate(row):
+            if item == selected_key:
+                current_pos = [r, c]; break
+        if current_pos: break
+    if not current_pos: current_pos = [0, 0]
+
+    def move_in_grid(pos, dr, dc):
+        new_r, new_c = (pos[0] + dr) % len(nav_grid), (pos[1] + dc) % len(nav_grid[0])
+        return nav_grid[new_r][new_c]
+    def save_and_exit():
+        nonlocal new_state
+        settings.userSettings['controllerBinds'] = temp_binds
+        settings_manager.save_settings(settings.settingsFile, settings.userSettings)
+        new_state = GameState.COLOR_SETTINGS
+        settings.buttonClickSound.play()
+
+
+    if selected_action:
+        if input_str:
+            temp_binds[selected_action] = input_str
+            new_selected_action = None
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            new_selected_action = None # Cancel rebinding
+    else:
+        binds = settings.userSettings['controllerBinds']
+        if input_str:
+            if input_str == binds.get('UP'): new_selected_key = move_in_grid(current_pos, -1, 0)
+            elif input_str == binds.get('DOWN'): new_selected_key = move_in_grid(current_pos, 1, 0)
+            elif input_str == binds.get('LEFT'): new_selected_key = move_in_grid(current_pos, 0, -1)
+            elif input_str == binds.get('RIGHT'): new_selected_key = move_in_grid(current_pos, 0, 1)
+            elif input_str == binds.get('CONFIRM'):
+                if new_selected_key == 'save': save_and_exit()
+                else: new_selected_action = new_selected_key
+            elif input_str == binds.get('CANCEL'):
+                save_and_exit()
+
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            save_and_exit()
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for action, rect in buttons.items():
+                if rect.collidepoint(mouse_pos):
+                    if action == 'save':
+                        # This is the save button, not a rebindable action.
+                        settings.buttonClickSound.play()
+                        settings.userSettings['controllerBinds'] = temp_binds
+                        save_and_exit()
+                    else:
+                        settings.buttonClickSound.play()
+                        new_selected_action = action
+                    break
+    return new_state, new_selected_action, new_selected_key
 
 def handle_custom_color_settings_events(event, mouse_pos, custom_color_buttons, temp_custom_color, editing_comp, input_str):
     """Handles events for CUSTOM_COLOR_SETTINGS. Returns state, editing component, and input string."""
@@ -414,6 +646,10 @@ def main():
     current_state = GameState.MAIN_MENU
     running = True
 
+    # --- Controller Initialization ---
+    pygame.joystick.init()
+    joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+
     # --- Easter Egg State ---
     code_sequence = []
 
@@ -467,16 +703,73 @@ def main():
     # --- UI Button State ---
     # Initialize all button dictionaries to empty dicts before the loop.
     # This prevents an UnboundLocalError on the first frame.
+    selected_main_menu_index = 0
     menu_buttons = {}
+    selected_settings_key = 'left' # Default selection for settings menu
+    # --- [NEW] State for timed joystick menu navigation ---
+    joystick_axis_states = {} # Tracks timers for each axis
+    JOYSTICK_INITIAL_DELAY = 300 # ms before repeat starts
+    JOYSTICK_REPEAT_DELAY = 150  # ms between repeats
+
+    joystickAxisActiveY = False # State tracker for analog stick menu navigation
     settings_buttons = {}
     splash_screen.show()
 
     keybind_buttons = {}
+    controller_settings_buttons = {}
     custom_color_buttons = {}
     debug_settings_buttons = {}
     game_over_buttons = {}
+    selected_game_over_index = 0
 
     while running:
+        # --- [NEW] Stateful Joystick Axis Handling for Menus ---
+        # This runs every frame, outside the event loop, to provide timed, repeating input.
+        joystick_generated_input = None
+        if joysticks:
+            # We check the first available joystick.
+            joy = joysticks[0]
+            current_time = pygame.time.get_ticks()
+            
+            # Define which axes map to which directions
+            axis_map = {
+                0: {'neg': 'LEFT', 'pos': 'RIGHT'}, # Horizontal axis
+                1: {'neg': 'UP', 'pos': 'DOWN'}      # Vertical axis
+            }
+
+            for axis_index, directions in axis_map.items():
+                axis_value = joy.get_axis(axis_index)
+                state = joystick_axis_states.get(axis_index, {'active': False, 'time': 0})
+
+                if abs(axis_value) > settings.JOYSTICK_DEADZONE:
+                    direction = directions['pos'] if axis_value > 0 else directions['neg']
+                    
+                    if not state['active']:
+                        # First press: trigger immediately and start timer
+                        joystick_generated_input = direction
+                        state['active'] = True
+                        state['time'] = current_time + JOYSTICK_INITIAL_DELAY
+                    elif current_time >= state['time']:
+                        # Repeat press: trigger and reset repeat timer
+                        joystick_generated_input = direction
+                        state['time'] = current_time + JOYSTICK_REPEAT_DELAY
+                else:
+                    # Axis is in the deadzone, reset its state
+                    state['active'] = False
+                
+                joystick_axis_states[axis_index] = state
+
+        # If the joystick generated an input, create a fake event-like structure
+        # to feed into the existing menu handlers.
+        if joystick_generated_input:
+            # This maps our simple direction string to the controller binding string
+            binds = settings.userSettings['controllerBinds']
+            simulated_input_str = binds.get(joystick_generated_input)
+            if simulated_input_str:
+                # Create a dummy event object that our handlers can understand
+                event = pygame.event.Event(pygame.USEREVENT, {'input_str': simulated_input_str})
+                pygame.event.post(event)
+
         # --- Event Handler ---
         # Handle events based on the current game state
         for event in pygame.event.get():
@@ -498,21 +791,31 @@ def main():
             # --- Get mouse position once per frame ---
             mouse_pos = pygame.mouse.get_pos()
 
+            # --- [REFACTOR] Unify Controller Input Handling ---
+            # Check for our simulated joystick event first
+            if event.type == pygame.USEREVENT and 'input_str' in event.dict:
+                event.dict['type'] = get_controller_input_string # A little hack to make it work with the existing `input_str` logic
+
             # --- State-based Event Handling ---
             if current_state == GameState.MAIN_MENU:
-                new_state = handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game, code_sequence)
+                new_state, selected_main_menu_index = handle_main_menu_events(event, mouse_pos, menu_buttons, start_new_game, code_sequence, selected_main_menu_index)
                 if new_state is None:
                     running = False
                 else:
-                    current_state = new_state
+                    current_state = new_state                    
 
             elif current_state == GameState.COLOR_SETTINGS:
-                current_state, current_color_index = handle_color_settings_events(event, mouse_pos, settings_buttons, color_names, current_color_index)
+                current_state, current_color_index, selected_settings_key = handle_color_settings_events(event, mouse_pos, settings_buttons, color_names, current_color_index, selected_settings_key)
                 if current_state == GameState.KEYBIND_SETTINGS:
                     selected_action_to_rebind = None # Reset on entering menu
 
             elif current_state == GameState.KEYBIND_SETTINGS:
-                current_state, selected_action_to_rebind = handle_keybind_settings_events(event, mouse_pos, keybind_buttons, temp_keybinds, selected_action_to_rebind)
+                current_state, selected_action_to_rebind, selected_settings_key = handle_keybind_settings_events(event, mouse_pos, keybind_buttons, temp_keybinds, selected_action_to_rebind, selected_settings_key)
+
+            elif current_state == GameState.CONTROLLER_SETTINGS:
+                current_state, selected_action_to_rebind, selected_settings_key = handle_controller_settings_events(event, mouse_pos, controller_settings_buttons, settings.userSettings['controllerBinds'], selected_action_to_rebind, selected_settings_key)
+                if current_state != GameState.CONTROLLER_SETTINGS:
+                    selected_action_to_rebind = None # Reset on exit
 
             elif current_state == GameState.CUSTOM_COLOR_SETTINGS:
                 new_state, new_edit_comp, new_input_str, held_action = handle_custom_color_settings_events(event, mouse_pos, custom_color_buttons, temp_custom_color, editingColorComponent, rgbInputString)
@@ -536,7 +839,17 @@ def main():
                 # Pass game-related inputs to the controller
                 game.handle_input(event)
                 if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
-                    pause_start_time = pygame.time.get_ticks() # Record when pause starts
+                    pause_start_time = pygame.time.get_ticks()
+                    current_state = GameState.PAUSED
+                elif get_controller_input_string(event) == settings.userSettings['controllerBinds'].get('PAUSE'):
+                    pause_start_time = pygame.time.get_ticks()
+                    current_state = GameState.PAUSED
+
+            elif current_state == GameState.EVENT_COUNTDOWN: # Also allow pausing during countdown
+                game.handle_input(event)
+                if event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_ESCAPE):
+                    current_state = GameState.PAUSED
+                elif event.type == pygame.JOYBUTTONDOWN and event.button == 7: # 'Start' button
                     current_state = GameState.PAUSED
             
             elif current_state == GameState.EVENT_COUNTDOWN: # Also allow pausing during countdown
@@ -549,14 +862,30 @@ def main():
                     if active_event:
                         event_start_time += pause_duration
                         notification_end_time += pause_duration
+                    current_state = GameState.PLAYING if not active_event else GameState.EVENT_COUNTDOWN
+                elif get_controller_input_string(event) == settings.userSettings['controllerBinds'].get('PAUSE'):
+                    # Same logic as keyboard unpause
                     current_state = GameState.PLAYING
             
             elif current_state == GameState.GAME_OVER:
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        running = False
-                    if event.key == pygame.K_r:
-                        current_state = start_new_game()
+                    if event.key in [pygame.K_UP, pygame.K_w]:
+                        selected_game_over_index = (selected_game_over_index - 1) % 2
+                    elif event.key in [pygame.K_DOWN, pygame.K_s]:
+                        selected_game_over_index = (selected_game_over_index + 1) % 2
+                    elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                        if selected_game_over_index == 0: current_state = start_new_game()
+                        elif selected_game_over_index == 1: current_state = GameState.MAIN_MENU
+                elif get_controller_input_string(event):
+                    input_str = get_controller_input_string(event)
+                    binds = settings.userSettings['controllerBinds']
+                    if input_str == binds.get('CONFIRM'):
+                        if selected_game_over_index == 0: current_state = start_new_game()
+                        elif selected_game_over_index == 1: current_state = GameState.MAIN_MENU
+                    elif input_str == binds.get('UP'):
+                        selected_game_over_index = (selected_game_over_index - 1) % 2
+                    elif input_str == binds.get('DOWN'):
+                        selected_game_over_index = (selected_game_over_index + 1) % 2
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if game_over_buttons['restart'].collidepoint(mouse_pos):
                         settings.buttonClickSound.play()
@@ -591,16 +920,19 @@ def main():
             settings.snakeColor = rainbow_color
 
         if current_state == GameState.MAIN_MENU:
-            menu_buttons = ui.draw_main_menu(settings.window)
+            menu_buttons = ui.draw_main_menu(settings.window, selected_main_menu_index)
         
         elif current_state == GameState.COLOR_SETTINGS:
-            settings_buttons = ui.draw_settings_menu(settings.window, color_names[current_color_index]) # Returns dict of buttons
+            settings_buttons = ui.draw_settings_menu(settings.window, color_names[current_color_index], selected_settings_key) # Returns dict of buttons
 
         elif current_state == GameState.DEBUG_SETTINGS:
             debug_settings_buttons = ui.draw_debug_settings_menu(settings.window, temp_debug_settings)
 
         elif current_state == GameState.KEYBIND_SETTINGS:
-            keybind_buttons = ui.draw_keybind_settings_menu(settings.window, temp_keybinds, selected_action_to_rebind)
+            keybind_buttons = ui.draw_keybind_settings_menu(settings.window, temp_keybinds, selected_action_to_rebind, selected_settings_key)
+
+        elif current_state == GameState.CONTROLLER_SETTINGS:
+            controller_settings_buttons = ui.draw_controller_settings_menu(settings.window, settings.userSettings['controllerBinds'], selected_action_to_rebind, selected_key=selected_settings_key)
 
         elif current_state == GameState.CUSTOM_COLOR_SETTINGS:
             if heldButton:
@@ -752,7 +1084,7 @@ def main():
 
         elif current_state == GameState.GAME_OVER:
             # Pass the final score and high score to the UI function
-            game_over_buttons = ui.draw_game_over_screen(settings.window, game.score, game.high_score)
+            game_over_buttons = ui.draw_game_over_screen(settings.window, game.score, game.high_score, selected_game_over_index)
 
         if settings.debugMode and current_state != GameState.DEBUG_SETTINGS:
             event_time_left = 0

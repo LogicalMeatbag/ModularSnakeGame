@@ -36,9 +36,40 @@ class GameController:
         self.high_score = score_manager.load_high_score(settings.highScoreFile)
 
     def handle_input(self, event):
-        """Handles key presses during the 'PLAYING' state."""
+        """Handles all forms of input during the 'PLAYING' state using the settings bindings."""
+        
+        # --- Helper to convert a Pygame event into a consistent string format ---
+        def get_input_string(e):
+            if e.type == pygame.JOYBUTTONDOWN:
+                return f"button_{e.button}"
+            if e.type == pygame.JOYHATMOTION:
+                # Hat motion is unique; we create separate strings for each direction
+                if e.value[0] == 1: return f"hat_{e.hat}_x_1"
+                if e.value[0] == -1: return f"hat_{e.hat}_x_-1"
+                if e.value[1] == 1: return f"hat_{e.hat}_y_1"
+                if e.value[1] == -1: return f"hat_{e.hat}_y_-1"
+            if e.type == pygame.JOYAXISMOTION:
+                # Axis motion is also unique; we create strings for positive/negative directions
+                if e.value > settings.JOYSTICK_DEADZONE: return f"axis_{e.axis}_pos"
+                if e.value < -settings.JOYSTICK_DEADZONE: return f"axis_{e.axis}_neg"
+            return None
+
+        input_str = get_input_string(event)
+        binds = settings.userSettings['controllerBinds']
+
+        # --- Check against all input types ---
         if event.type == pygame.KEYDOWN:
             self.snake.change_direction(event.key)
+        elif input_str:
+            # Check if the generated input string matches any of our bound actions
+            if input_str == binds.get('UP'):
+                self.snake.change_direction(settings.keybinds['UP'][0])
+            elif input_str == binds.get('DOWN'):
+                self.snake.change_direction(settings.keybinds['DOWN'][0])
+            elif input_str == binds.get('LEFT'):
+                self.snake.change_direction(settings.keybinds['LEFT'][0])
+            elif input_str == binds.get('RIGHT'):
+                self.snake.change_direction(settings.keybinds['RIGHT'][0])
 
     def update(self, active_event=None):
         """

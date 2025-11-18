@@ -51,6 +51,7 @@ xOffset = 0
 yOffset = 0
 
 startSpeed = 15
+JOYSTICK_DEADZONE = 0.5
 
 # pygame.RESIZABLE allows the user to change the window size.
 # pygame.DOUBLEBUF is recommended for smoother rendering.
@@ -161,6 +162,7 @@ class DebugSettingsDict(TypedDict):
 class UserSettingsDict(TypedDict):
     snakeColorName: str
     customColor: list[int]
+    controllerBinds: dict[str, str]
     keybinds: dict[str, list[int]]
     debugMode: bool
     rainbowModeUnlocked: bool
@@ -173,6 +175,16 @@ class UserSettingsDict(TypedDict):
 defaultSettings: UserSettingsDict = {
     "snakeColorName": "Green",
     "customColor": list(colorOptions["Green"]),
+    "controllerBinds": {
+        'UP': 'hat_0_y_1',      # D-pad Up
+        'DOWN': 'hat_0_y_-1',    # D-pad Down
+        'LEFT': 'hat_0_x_-1',    # D-pad Left
+        'RIGHT': 'hat_0_x_1',     # D-pad Right
+        'CONFIRM': 'button_0',
+        'CANCEL': 'button_1',
+        'PAUSE': 'button_7',
+        'SETTINGS': 'button_6'
+    },
     "keybinds": {
         'UP': [pygame.K_UP, pygame.K_w],
         'DOWN': [pygame.K_DOWN, pygame.K_s],
@@ -244,14 +256,15 @@ else:
 
 # Directly access the validated settings from the userSettings dictionary.
 keybinds, debugMode, rainbowModeUnlocked, showFps, vsync, maxFps = (
-    userSettings["keybinds"], userSettings["debugMode"], userSettings["rainbowModeUnlocked"],
-    userSettings["showFps"], userSettings["vsync"], userSettings["maxFps"]
+    userSettings["keybinds"], userSettings["debugMode"], 
+    userSettings["rainbowModeUnlocked"], userSettings["showFps"], 
+    userSettings["vsync"], userSettings["maxFps"]
 )
 
 # --- FILE PATHS ---
-eatSoundFile = os.path.join(base_path, 'assets', 'sounds', 'eat.wav')
-gameOverSoundFile = os.path.join(base_path, 'assets', 'sounds', 'game_over.wav')
-buttonClickSoundFile = os.path.join(base_path, 'assets', 'sounds', 'click.wav')
+eatSoundFile = os.path.join(base_path, 'assets', 'sounds', 'normal', 'eat.wav')
+gameOverSoundFile = os.path.join(base_path, 'assets', 'sounds', 'normal', 'game_over.wav')
+buttonClickSoundFile = os.path.join(base_path, 'assets', 'sounds', 'normal', 'click.wav')
 
 
 snakeHeadFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head.png')
