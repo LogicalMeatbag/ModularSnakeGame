@@ -247,12 +247,15 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
     new_color_index = current_color_index
     input_str = get_controller_input_string(event)
     new_selected_key = selected_key
+    sound_pack_names = list(settings.soundPacks.keys())
+    current_sound_pack_index = sound_pack_names.index(settings.userSettings['soundPack'])
     nav_grid = [
-        ['left',              'vsync_toggle', 'keybinds'],
-        ['right',             'fps_toggle',   'controller_settings'],
-        ['customize_button',  'dec_fps',      'debug_toggle'],
-        [None,                'inc_fps',      'debug_menu'],
-        ['save',               'save',         'save']
+        ['left',              'right', 'vsync_toggle', None,      'keybinds',            None],
+        ['customize_button',  None,    'dec_fps',      'inc_fps', 'controller_settings', None],
+        [None,                None,    'fps_toggle',   None,      'sound_left',          'sound_right'],
+        [None,                None,    None,           None,      'debug_toggle',        None],
+        [None,                None,    None,           None,      'debug_menu',          None],
+        ['save',              'save',  'save',         'save',    'save',                'save']
     ]
 
     # --- [FIX] Initialize grid position before any event handling ---
@@ -274,17 +277,22 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
 
     def move_in_grid(pos, dr, dc):
         """Helper to find the next valid button in the grid."""
-        new_r, new_c = pos[0] + dr, pos[1] + dc
-        # Wrap around rows and columns
-        new_r %= len(nav_grid)
-        new_c %= len(nav_grid[0])
-        # Find the next non-None item
-        while nav_grid[new_r][new_c] is None:
-            new_r = (new_r + dr) % len(nav_grid)
-        return nav_grid[new_r][new_c]
+        r, c = pos
+        rows = len(nav_grid)
+        cols = len(nav_grid[0])
+        
+        # Try to find a valid spot in the direction
+        # We loop up to max(rows, cols) times to ensure we find a spot or wrap around fully
+        for _ in range(max(rows, cols)):
+            r = (r + dr) % rows
+            c = (c + dc) % cols
+            if nav_grid[r][c] is not None:
+                return nav_grid[r][c]
+        
+        return selected_key # Fallback if something goes wrong
 
     def perform_action(action_key):
-        nonlocal new_state, new_color_index
+        nonlocal new_state, new_color_index, current_sound_pack_index
         if action_key == 'left': new_color_index = (current_color_index - 1) % len(color_names)
         elif action_key == 'right': new_color_index = (current_color_index + 1) % len(color_names)
         elif action_key == 'customize_button': new_state = GameState.CUSTOM_COLOR_SETTINGS
@@ -298,6 +306,20 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
         elif action_key == 'controller_settings': new_state = GameState.CONTROLLER_SETTINGS
         elif action_key == 'debug_toggle': settings.debugMode = not settings.debugMode
         elif action_key == 'debug_menu': new_state = GameState.DEBUG_SETTINGS
+        elif action_key == 'sound_left':
+            current_sound_pack_index = (current_sound_pack_index - 1) % len(sound_pack_names)
+            settings.userSettings['soundPack'] = sound_pack_names[current_sound_pack_index]
+            settings.set_sound_paths(settings.userSettings['soundPack'])
+            pygame.mixer.quit()
+            pygame.mixer.init()
+            settings.reload_sounds()
+        elif action_key == 'sound_right':
+            current_sound_pack_index = (current_sound_pack_index + 1) % len(sound_pack_names)
+            settings.userSettings['soundPack'] = sound_pack_names[current_sound_pack_index]
+            settings.set_sound_paths(settings.userSettings['soundPack'])
+            pygame.mixer.quit()
+            pygame.mixer.init()
+            settings.reload_sounds()
         elif action_key == 'save': new_state = GameState.MAIN_MENU
         settings.buttonClickSound.play()
 
@@ -334,6 +356,10 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
         elif settings_buttons['right'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
             new_color_index = (current_color_index + 1) % len(color_names)
+        elif settings_buttons.get('sound_left') and settings_buttons['sound_left'].collidepoint(mouse_pos):
+            perform_action('sound_left')
+        elif settings_buttons.get('sound_right') and settings_buttons['sound_right'].collidepoint(mouse_pos):
+            perform_action('sound_right')
         elif settings_buttons['keybinds'].collidepoint(mouse_pos):
             settings.buttonClickSound.play()
             new_state = GameState.KEYBIND_SETTINGS
@@ -387,6 +413,7 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
         settings.userSettings["vsync"] = settings.vsync
         settings.userSettings["maxFps"] = settings.maxFps
         settings.userSettings["debugMode"] = settings.debugMode
+        settings.userSettings["soundPack"] = sound_pack_names[current_sound_pack_index]
         settings_manager.save_settings(settings.settingsFile, settings.userSettings)
 
     return new_state, new_color_index, new_selected_key
@@ -396,6 +423,8 @@ def handle_keybind_settings_events(event, mouse_pos, keybind_buttons, temp_keybi
     new_state = GameState.KEYBIND_SETTINGS
     new_selected_action = selected_action
     new_selected_key = selected_key
+    sound_pack_names = list(settings.soundPacks.keys())
+    current_sound_pack_index = sound_pack_names.index(settings.userSettings['soundPack'])
 
     # --- Grid-based Navigation ---
     nav_grid = [
@@ -470,6 +499,8 @@ def handle_controller_settings_events(event, mouse_pos, buttons, temp_binds, sel
     new_selected_action = selected_action
     input_str = get_controller_input_string(event)
     new_selected_key = selected_key
+    sound_pack_names = list(settings.soundPacks.keys())
+    current_sound_pack_index = sound_pack_names.index(settings.userSettings['soundPack'])
 
     # --- Grid-based Navigation ---
     nav_grid = [
@@ -923,7 +954,9 @@ def main():
             menu_buttons = ui.draw_main_menu(settings.window, selected_main_menu_index)
         
         elif current_state == GameState.COLOR_SETTINGS:
-            settings_buttons = ui.draw_settings_menu(settings.window, color_names[current_color_index], selected_settings_key) # Returns dict of buttons
+            sound_pack_names = list(settings.soundPacks.keys())
+            current_sound_pack_name = sound_pack_names[sound_pack_names.index(settings.userSettings['soundPack'])]
+            settings_buttons = ui.draw_settings_menu(settings.window, color_names[current_color_index], current_sound_pack_name, selected_settings_key)
 
         elif current_state == GameState.DEBUG_SETTINGS:
             debug_settings_buttons = ui.draw_debug_settings_menu(settings.window, temp_debug_settings)

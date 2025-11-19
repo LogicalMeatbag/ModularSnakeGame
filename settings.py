@@ -169,6 +169,7 @@ class UserSettingsDict(TypedDict):
     showFps: bool
     vsync: bool
     maxFps: int
+    soundPack: str
     debugSettings: DebugSettingsDict
 
 # --- DEFAULT SETTINGS DICTIONARY ---
@@ -196,6 +197,7 @@ defaultSettings: UserSettingsDict = {
     "showFps": False, # Moved from debugSettings
     "vsync": True,
     "maxFps": 144,
+    "soundPack": "Normal",
     "debugSettings": DebugSettingsDict({
         "showState": True,
         "showSnakePos": True,
@@ -261,11 +263,29 @@ keybinds, debugMode, rainbowModeUnlocked, showFps, vsync, maxFps = (
     userSettings["vsync"], userSettings["maxFps"]
 )
 
-# --- FILE PATHS ---
-eatSoundFile = os.path.join(base_path, 'assets', 'sounds', 'normal', 'eat.wav')
-gameOverSoundFile = os.path.join(base_path, 'assets', 'sounds', 'normal', 'game_over.wav')
-buttonClickSoundFile = os.path.join(base_path, 'assets', 'sounds', 'normal', 'click.wav')
+# --- [NEW] Dynamic Sound Path System ---
+soundPacks = {
+    "Normal": os.path.join('assets', 'sounds', 'normal'),
+    "16-Bit": os.path.join('assets', 'sounds', '16bit')
+}
+eatSoundFile, gameOverSoundFile, buttonClickSoundFile = "", "", ""
 
+def set_sound_paths(pack_name):
+    """Sets the global sound file paths based on the selected pack."""
+    global eatSoundFile, gameOverSoundFile, buttonClickSoundFile
+    
+    if pack_name == "16-Bit":
+        pack_folder = soundPacks["16-Bit"]
+        eatSoundFile = os.path.join(base_path, pack_folder, 'Bloop.wav')
+        gameOverSoundFile = os.path.join(base_path, pack_folder, 'Error.wav')
+        buttonClickSoundFile = os.path.join(base_path, pack_folder, 'Generic Click 1.wav')
+    else: # Default to Normal or any other pack
+        pack_folder = soundPacks["Normal"]
+        eatSoundFile = os.path.join(base_path, pack_folder, 'eat.wav')
+        gameOverSoundFile = os.path.join(base_path, pack_folder, 'game_over.wav')
+        buttonClickSoundFile = os.path.join(base_path, pack_folder, 'click.wav')
+
+set_sound_paths(userSettings["soundPack"])
 
 snakeHeadFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head.png')
 snakeBodyFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_straight.png')
@@ -313,6 +333,23 @@ LoadingMessagesFonts = [
 ]
 LoadingMessagesDone = ["Ready to slither!", "Let the feast begin!", "Game loaded. Good luck!"]
 
+# --- [NEW] Sound Reloading Function ---
+def reload_sounds():
+    """
+    Directly reloads only the sound assets. This is a normal function, not a generator,
+    and is safe to call from the settings menu.
+    """
+    global eatSound, gameOverSound, buttonClickSound
+    try:
+        eatSound = pygame.mixer.Sound(eatSoundFile)
+        gameOverSound = pygame.mixer.Sound(gameOverSoundFile)
+        buttonClickSound = pygame.mixer.Sound(buttonClickSoundFile)
+        buttonClickSound.set_volume(0.5)
+    except pygame.error as e:
+        error_handler.show_error_message("Asset Warning", f"Could not reload a sound file.\n\nDetails: {e}", isFatal=False)
+        # Create silent fallback sounds
+        eatSound, gameOverSound, buttonClickSound = pygame.mixer.Sound(buffer=b''), pygame.mixer.Sound(buffer=b''), pygame.mixer.Sound(buffer=b'')
+
 # --- ASSET LOADING FUNCTION ---
 def load_assets():
     """
@@ -326,14 +363,7 @@ def load_assets():
 
     # Step 1: Load Sounds
     yield (0, total_steps, random.choice(LoadingMessagesSounds))
-    try:
-        eatSound = pygame.mixer.Sound(eatSoundFile)
-        gameOverSound = pygame.mixer.Sound(gameOverSoundFile)
-        buttonClickSound = pygame.mixer.Sound(buttonClickSoundFile)
-        buttonClickSound.set_volume(0.5)
-    except pygame.error as e:
-        error_handler.show_error_message("Asset Warning", f"Could not load a sound file.\n\nDetails: {e}", isFatal=False)
-        eatSound, gameOverSound, buttonClickSound = pygame.mixer.Sound(buffer=b''), pygame.mixer.Sound(buffer=b''), pygame.mixer.Sound(buffer=b'')
+    reload_sounds() # Use the new function to do the actual loading
 
     # Step 2: Load Snake Images
     yield (1, total_steps, random.choice(LoadingMessagesSnake))

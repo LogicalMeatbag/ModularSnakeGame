@@ -127,7 +127,7 @@ def draw_main_menu(surface, selected_index=None):
 
     return buttons
 
-def draw_settings_menu(surface, current_color_name, selected_key=None):
+def draw_settings_menu(surface, current_color_name, current_sound_pack_name, selected_key=None):
     """Draws the settings menu screen and returns button rects."""
     win_w, win_h = surface.get_size()
     buttons = {} # Initialize the buttons dictionary
@@ -257,7 +257,26 @@ def draw_settings_menu(surface, current_color_name, selected_key=None):
     _draw_wrapped_text(surface, controller_text, settings.scoreFont, controllerColor, button_width - 10, controller_rect.center)
     buttons['controller_settings'] = controller_rect
 
-    y_pos += button_height / 2 + 40 # Adjusted spacing
+    y_pos += button_height_controller + 15 # Spacing
+    sound_pack_text = "Sound Pack"
+    _draw_wrapped_text(surface, sound_pack_text, settings.scoreFont, settings.white, column_width, (col3_x, y_pos))
+    
+    y_pos += 40 # Space for the selector below the label
+    sound_pack_name_surf = settings.smallFont.render(current_sound_pack_name, True, settings.white)
+    surface.blit(sound_pack_name_surf, sound_pack_name_surf.get_rect(center=(col3_x, y_pos)))
+
+    sound_arrow_offset = 80
+    sound_left_rect = pygame.Rect(0,0,40,40); sound_left_rect.center = (col3_x - sound_arrow_offset, y_pos)
+    sound_left_color = settings.white if sound_left_rect.collidepoint(mouse_pos) or selected_key == 'sound_left' else settings.uiElementColor
+    surface.blit(settings.smallFont.render("<", True, sound_left_color), settings.smallFont.render("<", True, sound_left_color).get_rect(center=sound_left_rect.center))
+    buttons['sound_left'] = sound_left_rect
+
+    sound_right_rect = pygame.Rect(0,0,40,40); sound_right_rect.center = (col3_x + sound_arrow_offset, y_pos)
+    sound_right_color = settings.white if sound_right_rect.collidepoint(mouse_pos) or selected_key == 'sound_right' else settings.uiElementColor
+    surface.blit(settings.smallFont.render(">", True, sound_right_color), settings.smallFont.render(">", True, sound_right_color).get_rect(center=sound_right_rect.center))
+    buttons['sound_right'] = sound_right_rect
+
+    y_pos += 40 # Adjusted spacing
     label_height = _draw_wrapped_text(surface, "Debug Mode:", settings.scoreFont, settings.white,
                        column_width / 2, (col3_x - 10, y_pos), right_align=True)
 
