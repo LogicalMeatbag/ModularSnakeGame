@@ -15,12 +15,10 @@ import error_handler
 sys.excepthook = error_handler.handle_uncaught_exception
 
 # --- 1. Python Version Check ---
-# We check for a minimum version, not a specific one.
-# 3.8 is a safe, modern minimum.
 MIN_PYTHON_VERSION = (3, 8)
 
 if sys.version_info < MIN_PYTHON_VERSION:
-    current_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+    current_ver = f"{sys.version_info.major}.{sys.version_info.minor}" # "3.7" # (Uncomment this to test error message)
     required_ver = f"{MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]}"
     
     error_message = (
