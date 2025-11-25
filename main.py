@@ -174,13 +174,13 @@ def get_controller_input_string(event):
     if event.type == pygame.JOYBUTTONDOWN:
         return f"button_{event.button}"
     if event.type == pygame.JOYHATMOTION:
-        # Hat motion is unique; we create separate strings for each direction
         if event.value[0] == 1: return f"hat_{event.hat}_x_1"
         if event.value[0] == -1: return f"hat_{event.hat}_x_-1"
         if event.value[1] == 1: return f"hat_{event.hat}_y_1"
         if event.value[1] == -1: return f"hat_{event.hat}_y_-1"
     if event.type == pygame.JOYAXISMOTION:
-        # We now handle axis motion statefully in the main loop, not via events.
+        if event.value > settings.JOYSTICK_DEADZONE: return f"axis_{event.axis}_pos"
+        if event.value < -settings.JOYSTICK_DEADZONE: return f"axis_{event.axis}_neg"
         return None
     return None
 
@@ -251,13 +251,13 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
     current_sound_pack_index = sound_pack_names.index(settings.userSettings['soundPack'])
     nav_grid = [
         ['left',              'right', 'vsync_toggle', None,      'keybinds',            None],
-        ['customize_button',  None,    'dec_fps',      'inc_fps', 'controller_settings', None],
+        ['customize_button',  None,    'dec_fps',      'inc_fps', 'controller_settings', None,],
         [None,                None,    'fps_toggle',   None,      'sound_left',          'sound_right'],
         [None,                None,    None,           None,      'debug_toggle',        None],
         [None,                None,    None,           None,      'debug_menu',          None],
-        ['save',              'save',  'save',         'save',    'save',                'save']
+        [None,                None,    'save',         'save',    None,                  None]
     ]
-
+ 
     # --- [FIX] Initialize grid position before any event handling ---
     # This ensures `current_pos` is never None when `move_in_grid` is called.
     # --- [REFACTOR] Grid-based Navigation ---
@@ -267,7 +267,7 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
     current_pos = None
     for r, row in enumerate(nav_grid):
         for c, item in enumerate(row):
-            if item == selected_key:
+            if item == new_selected_key:
                 current_pos = [r, c]
                 break
         if current_pos:
@@ -280,16 +280,26 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
         r, c = pos
         rows = len(nav_grid)
         cols = len(nav_grid[0])
+
+        # If moving down from any row before the last one, and there's nothing directly below,
+        # snap to the 'save' button in the middle of the last row.
+        if dr == 1 and r < rows - 1:
+            next_r = r + 1
+            # Check if the spot directly below is empty
+            if nav_grid[next_r][c] is None:
+                # Find the first available 'save' button in the last row
+                for save_c, item in enumerate(nav_grid[-1]):
+                    if item == 'save':
+                        return nav_grid[-1][save_c]
+
+        # Original logic for all other directions
+        start_c, start_r = c, r
+        c, r = (c + dc) % cols, (r + dr) % rows
+        while nav_grid[r][c] is None and (r, c) != (start_r, start_c):
+            c, r = (c + dc) % cols, (r + dr) % rows
+        return nav_grid[r][c]
         
-        # Try to find a valid spot in the direction
-        # We loop up to max(rows, cols) times to ensure we find a spot or wrap around fully
-        for _ in range(max(rows, cols)):
-            r = (r + dr) % rows
-            c = (c + dc) % cols
-            if nav_grid[r][c] is not None:
-                return nav_grid[r][c]
-        
-        return selected_key # Fallback if something goes wrong
+        return new_selected_key # Fallback if something goes wrong
 
     def perform_action(action_key):
         nonlocal new_state, new_color_index, current_sound_pack_index
@@ -337,13 +347,11 @@ def handle_color_settings_events(event, mouse_pos, settings_buttons, color_names
         if input_str == binds.get('UP'): new_selected_key = move_in_grid(current_pos, -1, 0)
         elif input_str == binds.get('DOWN'): new_selected_key = move_in_grid(current_pos, 1, 0)
         elif input_str == binds.get('LEFT'):
-            # Special case: if on color arrows, change color instead of navigating
-            if new_selected_key in ['left', 'right']: perform_action('left')
-            else: new_selected_key = move_in_grid(current_pos, 0, -1)
+            new_selected_key = move_in_grid(current_pos, 0, -1)
         elif input_str == binds.get('RIGHT'):
-            if new_selected_key in ['left', 'right']: perform_action('right')
-            else: new_selected_key = move_in_grid(current_pos, 0, 1)
-        elif input_str == binds.get('CONFIRM'):
+            new_selected_key = move_in_grid(current_pos, 0, 1)
+
+        if input_str == binds.get('CONFIRM'):
             if new_selected_key:
                 perform_action(new_selected_key)
         elif input_str == binds.get('CANCEL'):
@@ -754,52 +762,6 @@ def main():
     selected_game_over_index = 0
 
     while running:
-        # --- [NEW] Stateful Joystick Axis Handling for Menus ---
-        # This runs every frame, outside the event loop, to provide timed, repeating input.
-        joystick_generated_input = None
-        if joysticks:
-            # We check the first available joystick.
-            joy = joysticks[0]
-            current_time = pygame.time.get_ticks()
-            
-            # Define which axes map to which directions
-            axis_map = {
-                0: {'neg': 'LEFT', 'pos': 'RIGHT'}, # Horizontal axis
-                1: {'neg': 'UP', 'pos': 'DOWN'}      # Vertical axis
-            }
-
-            for axis_index, directions in axis_map.items():
-                axis_value = joy.get_axis(axis_index)
-                state = joystick_axis_states.get(axis_index, {'active': False, 'time': 0})
-
-                if abs(axis_value) > settings.JOYSTICK_DEADZONE:
-                    direction = directions['pos'] if axis_value > 0 else directions['neg']
-                    
-                    if not state['active']:
-                        # First press: trigger immediately and start timer
-                        joystick_generated_input = direction
-                        state['active'] = True
-                        state['time'] = current_time + JOYSTICK_INITIAL_DELAY
-                    elif current_time >= state['time']:
-                        # Repeat press: trigger and reset repeat timer
-                        joystick_generated_input = direction
-                        state['time'] = current_time + JOYSTICK_REPEAT_DELAY
-                else:
-                    # Axis is in the deadzone, reset its state
-                    state['active'] = False
-                
-                joystick_axis_states[axis_index] = state
-
-        # If the joystick generated an input, create a fake event-like structure
-        # to feed into the existing menu handlers.
-        if joystick_generated_input:
-            # This maps our simple direction string to the controller binding string
-            binds = settings.userSettings['controllerBinds']
-            simulated_input_str = binds.get(joystick_generated_input)
-            if simulated_input_str:
-                # Create a dummy event object that our handlers can understand
-                event = pygame.event.Event(pygame.USEREVENT, {'input_str': simulated_input_str})
-                pygame.event.post(event)
 
         # --- Event Handler ---
         # Handle events based on the current game state
@@ -821,11 +783,6 @@ def main():
 
             # --- Get mouse position once per frame ---
             mouse_pos = pygame.mouse.get_pos()
-
-            # --- [REFACTOR] Unify Controller Input Handling ---
-            # Check for our simulated joystick event first
-            if event.type == pygame.USEREVENT and 'input_str' in event.dict:
-                event.dict['type'] = get_controller_input_string # A little hack to make it work with the existing `input_str` logic
 
             # --- State-based Event Handling ---
             if current_state == GameState.MAIN_MENU:
