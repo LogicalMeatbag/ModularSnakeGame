@@ -27,3 +27,6 @@ version_info.txt
 # Ignore configuration folders from common editors like VS Code and JetBrains IDEs.
 .vscode/
 .idea/
+
+# --- Scripts ---
+count_loc.py
