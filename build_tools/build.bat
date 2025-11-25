@@ -82,7 +82,11 @@ REM --- Step 0: Determine and Confirm Version Number ---
 echo [BUILD] Using version: %Version%
 
 REM Convert version string "1.0.0" to "1,0,0,0" for the version file
-for /f "tokens=1,2,3 delims=." %%a in ("%Version%") do set "VersionTuple=%%a,%%b,%%c,0"
+echo [DEBUG] Parsing Version: '%Version%'
+for /f "tokens=1,2,3 delims=." %%a in ("%Version%") do (
+    set "VersionTuple=%%a,%%b,%%c,0"
+)
+echo [DEBUG] Resulting VersionTuple: '%VersionTuple%'
 
 REM --- Start Build ---
 echo [BUILD] Starting the automated build process...
@@ -170,7 +174,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo [BUILD] Executable built successfully.
-echo.
 
 REM --- Step 4: Create the portable shortcut ---
 echo [BUILD] Creating portable Windows shortcut...
@@ -186,10 +189,205 @@ echo.
 REM --- Step 5: Package into a .zip file ---
 echo [BUILD] Packaging final distributable .zip file...
 set "PackageName=ANAHKENs_Snake_Game_Windows_v%Version%"
-powershell -Command "Compress-Archive -Path '.\dist', '.\%ProductName%.lnk', '.\README.md', '.\LICENSE' -DestinationPath '.\%PackageName%.zip' -Force" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '.\dist', '.\%ProductName%.lnk', '.\README.md', '.\LICENSE' -DestinationPath '.\%PackageName%.zip' -Force" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Failed to create .zip file. This can happen if PowerShell is restricted.
-    echo [ERROR] Please check your system's script execution policy.
+    echo [ERROR] Failed to create .zip file.
+    echo [ERROR] PowerShell 'Compress-Archive' failed even with bypass.
+    pause
+    exit /b 1
+)
+echo [BUILD] Successfully created '%PackageName%.zip'.
+echo.
+
+REM --- Step 6: Generate Checksum for Verification ---
+echo [BUILD] Generating SHA-256 checksum for the package...
+set "ChecksumFile=%PackageName%.zip.sha256"
+certutil -hashfile "%PackageName%.zip" SHA256 > "%ChecksumFile%.tmp"
+if %errorlevel% neq 0 (
+REM 2. Generates a version info file for the executable.
+REM 3. Runs PyInstaller to create the executable with embedded version info.
+REM 4. Runs the VBScript to create the portable shortcut.
+REM 5. Includes documentation in the final package.
+REM 6. Packages everything into a clean, versioned, distributable .zip file.
+REM 7. Generates a SHA-256 checksum for the final package to ensure integrity.
+
+REM --- Configuration ---
+set "CurrentVersion=1.2.0"
+set "CompanyName=ANAHKEN"
+set "FileDescription=ANAHKENs Modular Snake Game"
+set "ProductName=ANAHKENs Modular Snake Game"
+set "LegalCopyright=Copyright (c) LogicalMeatbag on Github. All rights reserved."
+
+REM --- Step 0: Determine and Confirm Version Number ---
+:VersionLoop
+    set "Version="
+    REM Only check for command-line arguments on the first pass.
+    set "VersionSource=interactive"
+    if not defined FirstPass (
+        if /i "%1"=="major" (
+            set "VersionSource=major"
+            for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
+                set /a "major=%%a + 1"
+                set "Version=!major!.0.0"
+            )
+        ) else if /i "%1"=="minor" (
+            set "VersionSource=minor"
+            for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
+                set /a "minor=%%b + 1"
+                set "Version=%%a.!minor!.0"
+            )
+        ) else if /i "%1"=="patch" (
+            set "VersionSource=patch"
+            for /f "tokens=1,2,3 delims=." %%a in ("%CurrentVersion%") do (
+                set /a "patch=%%c + 1"
+                set "Version=%%a.%%b.!patch!"
+            )
+        )
+    )
+    set "FirstPass=true"
+
+    REM If no version was set by arguments, go to interactive mode.
+    if not defined Version (
+        echo.
+        echo The current version is set to %CurrentVersion%.
+        set /p "Version=Enter new version number (or press Enter to use %CurrentVersion%): "
+        if not defined Version set "Version=%CurrentVersion%"
+    )
+
+    :ConfirmLoop
+    set "Confirm="
+    echo.
+    set /p "Confirm=You are about to build version '%Version%'. Is this correct? [Y/n]: "
+    if /i "%Confirm%"=="Y" goto EndVersionSelection
+    if /i "%Confirm%"=="" goto EndVersionSelection
+    if /i "%Confirm%"=="N" (
+        if "%VersionSource%"=="interactive" (
+            echo [BUILD] Version rejected. Please enter the correct version manually.
+            goto VersionLoop
+        ) else (
+            echo [ERROR] Build aborted by user due to incorrect version from '%VersionSource%' argument.
+            pause
+            exit /b 1
+        )
+    )
+    echo [ERROR] Invalid input. Please enter 'Y' or 'N'.
+    goto ConfirmLoop
+
+:EndVersionSelection
+echo [BUILD] Using version: %Version%
+
+REM Convert version string "1.0.0" to "1,0,0,0" for the version file
+echo [DEBUG] Parsing Version: '%Version%'
+for /f "tokens=1,2,3 delims=." %%a in ("%Version%") do (
+    set "VersionTuple=%%a,%%b,%%c,0"
+)
+echo [DEBUG] Resulting VersionTuple: '%VersionTuple%'
+
+REM --- Start Build ---
+echo [BUILD] Starting the automated build process...
+
+REM --- Step 1: Clean previous build artifacts ---
+echo [BUILD] Cleaning previous build artifacts...
+if exist "dist" (
+    echo      - Removing 'dist' folder...
+    rmdir /s /q "dist"
+)
+if exist "build" (
+    echo      - Removing 'build' folder...
+    rmdir /s /q "build"
+)
+if exist "%ProductName%.spec" (
+    echo      - Removing '.spec' file...
+    del "%ProductName%.spec"
+)
+if exist "version_info.txt" (
+    echo      - Removing 'version_info.txt' file...
+    del "version_info.txt"
+)
+if exist "%ProductName%.lnk" (
+    echo      - Removing old shortcut...
+    del "%ProductName%.lnk"
+)
+if exist "*.zip" (
+    echo      - Removing old .zip packages...
+    del "*.zip" "*.sha256"
+)
+echo [BUILD] Cleaning complete.
+echo.
+
+REM --- Step 2: Generate Version Info File ---
+echo [BUILD] Generating version info file (version_info.txt)...
+REM Write the file line-by-line using append redirection (>>). This is more
+REM robust than using a single parenthesized block, as it avoids parsing
+REM issues with special characters like commas inside variables.
+echo # UTF-8 > version_info.txt
+echo VSVersionInfo( >> version_info.txt
+echo   ffi=FixedFileInfo( >> version_info.txt
+echo     filevers=(%VersionTuple%), >> version_info.txt
+echo     prodvers=(%VersionTuple%), >> version_info.txt
+echo     mask=0x3f, >> version_info.txt
+echo     flags=0x0, >> version_info.txt
+echo     OS=0x40004, >> version_info.txt
+echo     fileType=0x1, >> version_info.txt
+echo     subtype=0x0, >> version_info.txt
+echo     date=(0, 0) >> version_info.txt
+echo   ^), >> version_info.txt
+echo   kids=[ >> version_info.txt
+echo     StringFileInfo([ >> version_info.txt
+echo       StringTable( >> version_info.txt
+echo         u'040904B0', >> version_info.txt
+echo         [StringStruct(u'CompanyName', u'%CompanyName%'), >> version_info.txt
+echo         StringStruct(u'FileDescription', u'%FileDescription%'), >> version_info.txt
+echo         StringStruct(u'FileVersion', u'%Version%'), >> version_info.txt
+echo         StringStruct(u'InternalName', u'ModularSnake'), >> version_info.txt
+echo         StringStruct(u'LegalCopyright', u'%LegalCopyright%'), >> version_info.txt
+echo         StringStruct(u'OriginalFilename', u'%ProductName%.exe'), >> version_info.txt
+echo         StringStruct(u'ProductName', u'%ProductName%'), >> version_info.txt
+echo         StringStruct(u'ProductVersion', u'%Version%')]^) >> version_info.txt
+echo     ]), >> version_info.txt
+echo     VarFileInfo([VarStruct(u'Translation', [1033, 1200])]) >> version_info.txt
+echo   ] >> version_info.txt
+echo ) >> version_info.txt
+
+echo [BUILD] Version info file created.
+echo.
+
+REM --- Step 3: Run PyInstaller ---
+echo [BUILD] Building executable with PyInstaller...
+REM Run PyInstaller only ONCE, providing all arguments directly.
+REM This is more robust than modifying the .spec file after generation.
+py -m PyInstaller --onefile --windowed --name "%ProductName%" ^
+    --icon="assets/images/icon.ico" ^
+    --add-data "assets;assets" ^
+    --splash "assets/images/splash_screen.png" ^
+    --version-file "%CD%\version_info.txt" ^
+    --noconfirm main.py
+
+if %errorlevel% neq 0 (
+    echo [ERROR] PyInstaller failed to build the executable. Aborting.
+    pause
+    exit /b 1
+)
+echo [BUILD] Executable built successfully.
+
+REM --- Step 4: Create the portable shortcut ---
+echo [BUILD] Creating portable Windows shortcut...
+cscript //nologo "build_tools\create_shortcut.vbs"
+if not exist "%ProductName%.lnk" (
+    echo [ERROR] Shortcut creation failed. Aborting.
+    pause
+    exit /b 1
+)
+echo [BUILD] Shortcut created successfully.
+echo.
+
+REM --- Step 5: Package into a .zip file ---
+echo [BUILD] Packaging final distributable .zip file...
+set "PackageName=ANAHKENs_Snake_Game_Windows_v%Version%"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '.\dist', '.\%ProductName%.lnk', '.\README.md', '.\LICENSE' -DestinationPath '.\%PackageName%.zip' -Force" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERROR] Failed to create .zip file.
+    echo [ERROR] PowerShell 'Compress-Archive' failed even with bypass.
     pause
     exit /b 1
 )
@@ -212,12 +410,10 @@ echo.
 
 REM --- Step 7: Clean up intermediate files ---
 echo [BUILD] Cleaning up intermediate build files...
-if exist "dist" ( rmdir /s /q "dist" )
 if exist "build" ( rmdir /s /q "build" )
 if exist "%ProductName%.spec" ( del "%ProductName%.spec" )
 if exist "version_info.txt" ( del "version_info.txt" )
-if exist "%ProductName%.lnk" ( del "%ProductName%.lnk" )
-echo [BUILD] Cleanup complete. All temporary files removed.
+echo [BUILD] Cleanup complete. Intermediate files removed (keeping dist and shortcut for testing).
 echo.
 
 echo [SUCCESS] Build and packaging process complete!
