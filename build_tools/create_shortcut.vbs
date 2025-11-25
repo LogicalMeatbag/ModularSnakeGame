@@ -1,31 +1,6 @@
 Set WshShell = WScript.CreateObject("WScript.Shell")
 Set FileSystem = CreateObject("Scripting.FileSystemObject")
 
-' =================================================================
-'  Shortcut Creator for ANAHKEN's Modular Snake Game
-' =================================================================
-' This script generates a portable Windows shortcut (.lnk) that
-' launches the game. It uses relative paths so it will work
-' correctly no matter where the user unzips the game folder.
-
-' Get the full path to the project root (one level up from this script).
-projectRoot = FileSystem.GetParentFolderName(FileSystem.GetParentFolderName(WScript.ScriptFullName))
-
-' Define the name and path for the shortcut we are creating.
-shortcutPath = FileSystem.BuildPath(projectRoot, "ANAHKENs Modular Snake Game.lnk")
-
-' Create the shortcut object.
-Set oShellLink = WshShell.CreateShortcut(shortcutPath)
-Set WshShell = WScript.CreateObject("WScript.Shell")
-Set FileSystem = CreateObject("Scripting.FileSystemObject")
-
-' =================================================================
-'  Shortcut Creator for ANAHKEN's Modular Snake Game
-' =================================================================
-' This script generates a portable Windows shortcut (.lnk) that
-' launches the game. It uses relative paths so it will work
-' correctly no matter where the user unzips the game folder.
-
 ' Get the full path to the project root (one level up from this script).
 projectRoot = FileSystem.GetParentFolderName(FileSystem.GetParentFolderName(WScript.ScriptFullName))
 
