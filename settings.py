@@ -11,12 +11,12 @@ from typing import TypedDict, Any
 # whether we are running as a .py script or a bundled .exe
 if getattr(sys, 'frozen', False):
     # Running as a bundled .exe
-    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))) # For assets inside the .exe
+    basePath = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))) # For assets inside the .exe
 else:
     # Running as a .py script
-    base_path = os.path.dirname(os.path.abspath(__file__)) # For assets next to the .py
+    basePath = os.path.dirname(os.path.abspath(__file__)) # For assets next to the .py
 
-def get_app_data_folder():
+def getAppDataFolder():
     app_data_path = os.getenv('APPDATA')
     if app_data_path:
         # Create a dedicated folder for our game inside AppData
@@ -28,7 +28,7 @@ def get_app_data_folder():
         # Just save it next to the script or .exe
         return os.path.dirname(os.path.abspath(__file__))
 
-appDataFolder = get_app_data_folder()
+appDataFolder = getAppDataFolder()
 highScoreFile = os.path.join(appDataFolder, "highscore.dat")
 # --- PYGAME & SOUND INIT ---
 pygame.init()
@@ -64,7 +64,7 @@ window = pygame.display.set_mode((initialWidth, initialHeight), pygame.RESIZABLE
 pygame.display.set_caption(gameTitle)
 
 # --- SET WINDOW ICON ---
-iconFile = os.path.join(base_path, 'assets', 'images', 'icon.png')
+iconFile = os.path.join(basePath, 'assets', 'images', 'icon.png')
 try:
     gameIcon = pygame.image.load(iconFile).convert_alpha()
     pygame.display.set_icon(gameIcon)
@@ -103,30 +103,30 @@ goldenFoodScore = 5
 goldenFoodChance = 15 # Represents a 1 in 15 chance
 
 # --- Random Event Settings ---
-EVENT_TIMER_MAX = 15 * 1000 # An event can trigger every 15 seconds (in milliseconds)
-EVENT_CHANCE = 25 # 25% chance to trigger an event when the timer is up
-EVENT_DURATION = 10 * 1000 # Most events last for 10 seconds
-EVENT_NOTIFICATION_DURATION = 3 * 1000 # "Apples Galore!" message shows for 3 seconds
-EVENT_COUNTDOWN_DURATION = 5 * 1000 # Start countdown 5 seconds before event can trigger
+EventTimerMax = 15 * 1000 # An event can trigger every 15 seconds (in milliseconds)
+EventChance = 25 # 25% chance to trigger an event when the timer is up
+EventDuration = 10 * 1000 # Most events last for 10 seconds
+EventNotificationDuration = 3 * 1000 # "Apples Galore!" message shows for 3 seconds
+EventCountdownDuration = 5 * 1000 # Start countdown 5 seconds before event can trigger
 
-SPLASH_FADE_IN_DURATION = 1000  # 1 second to fade in
-SPLASH_STAY_DURATION = 1500     # 1.5 seconds to stay on screen
-SPLASH_FADE_OUT_DURATION = 500  # 0.5 seconds to fade out
+SplashFadeInDuration = 1000  # 1 second to fade in
+SplashStayDuration = 1500     # 1.5 seconds to stay on screen
+SplashFadeOutDuration = 500  # 0.5 seconds to fade out
 
-DEATH_ANIMATION_INITIAL_PAUSE = 250 # A brief pause before the animation starts.
-SNAKE_SIZE_ANIMATION_DURATION = 750 # How long the grow/shrink animation takes.
-DEATH_FADE_OUT_DURATION = 1000 # How long the entire snake takes to fade out.
+DeathAnimationInitialPause = 250 # A brief pause before the animation starts.
+SnakeSizeAnimationDuration = 750 # How long the grow/shrink animation takes.
+DeathFadeOutDuration = 1000 # How long the entire snake takes to fade out.
 
 # Event-specific values
-APPLES_GALORE_COUNT = 15
-GOLDEN_APPLE_RAIN_COUNT = 10
-BEEG_SNAKE_GROWTH = 10
-SMALL_SNAKE_SHRINK = 5
-RACECAR_SNAKE_SPEED_BOOST = 15
-SLOW_SNAKE_SPEED_REDUCTION = 5
+ApplesGaloreCount = 15
+GoldenAppleRainCount = 10
+BeegSnakeGrowth = 10
+SmallSnakeShrink = 5
+RacecarSnakeSpeedBoost = 15
+SlowSnakeSpeedReduction = 5
 
 # Used for weighted random selection. Higher numbers are more likely.
-DEFAULT_EVENT_WEIGHTS: dict[str, int] = {
+DefaultEventWeights: dict[str, int] = {
     "Apples Galore": 10, "Golden Apple Rain": 5, "BEEEG Snake": 10, 
     "Small Snake": 10, "Racecar Snake": 8, "Slow Snake": 8
 }
@@ -220,7 +220,7 @@ defaultSettings: UserSettingsDict = {
         "smallSnakeShrinkOverride": 5,
         "racecarSpeedBoostOverride": 15, # The comma was missing on the line above this one
         "slowSnakeSpeedReductionOverride": 5,
-        "eventChancesOverride": DEFAULT_EVENT_WEIGHTS.copy()
+        "eventChancesOverride": DefaultEventWeights.copy()
     })
 }
 
@@ -276,27 +276,27 @@ def set_sound_paths(pack_name):
     
     if pack_name == "16-Bit":
         pack_folder = soundPacks["16-Bit"]
-        eatSoundFile = os.path.join(base_path, pack_folder, 'Bloop.wav')
-        gameOverSoundFile = os.path.join(base_path, pack_folder, 'Error.wav')
-        buttonClickSoundFile = os.path.join(base_path, pack_folder, 'Generic Click 1.wav')
+        eatSoundFile = os.path.join(basePath, pack_folder, 'Bloop.wav')
+        gameOverSoundFile = os.path.join(basePath, pack_folder, 'Error.wav')
+        buttonClickSoundFile = os.path.join(basePath, pack_folder, 'Generic Click 1.wav')
     else: # Default to Normal or any other pack
         pack_folder = soundPacks["Normal"]
-        eatSoundFile = os.path.join(base_path, pack_folder, 'eat.wav')
-        gameOverSoundFile = os.path.join(base_path, pack_folder, 'game_over.wav')
-        buttonClickSoundFile = os.path.join(base_path, pack_folder, 'click.wav')
+        eatSoundFile = os.path.join(basePath, pack_folder, 'eat.wav')
+        gameOverSoundFile = os.path.join(basePath, pack_folder, 'game_over.wav')
+        buttonClickSoundFile = os.path.join(basePath, pack_folder, 'click.wav')
 
 set_sound_paths(userSettings["soundPack"])
 
-snakeHeadFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head.png')
-snakeBodyFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_straight.png')
-snakeTailFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_end.png')
-snakeTurnFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_body_corner.png')
-snakeHeadLoseFile = os.path.join(base_path, 'assets', 'images', 'snake', 'snake_head_lose.png')
+snakeHeadFile = os.path.join(basePath, 'assets', 'images', 'snake', 'snake_head.png')
+snakeBodyFile = os.path.join(basePath, 'assets', 'images', 'snake', 'snake_body_straight.png')
+snakeTailFile = os.path.join(basePath, 'assets', 'images', 'snake', 'snake_body_end.png')
+snakeTurnFile = os.path.join(basePath, 'assets', 'images', 'snake', 'snake_body_corner.png')
+snakeHeadLoseFile = os.path.join(basePath, 'assets', 'images', 'snake', 'snake_head_lose.png')
 
-appleFile = os.path.join(base_path, 'assets', 'images', 'food', 'apple.png') # Assumed path for the apple
-splashLogoFile = os.path.join(base_path, 'assets', 'images', 'splash_screen.png') # Path for the new splash logo
-fontFile = os.path.join(base_path, 'assets', 'fonts', 'PixelifySans-Regular.ttf') # Path for the new pixel font
-debugFontFile = os.path.join(base_path, 'assets', 'fonts', 'consola.ttf') # Path for the new debug font
+appleFile = os.path.join(basePath, 'assets', 'images', 'food', 'apple.png') # Assumed path for the apple
+splashLogoFile = os.path.join(basePath, 'assets', 'images', 'splash_screen.png') # Path for the new splash logo
+fontFile = os.path.join(basePath, 'assets', 'fonts', 'PixelifySans-Regular.ttf') # Path for the new pixel font
+debugFontFile = os.path.join(basePath, 'assets', 'fonts', 'consola.ttf') # Path for the new debug font
 
 # --- DYNAMICALLY LOADED ASSETS ---
 # These are initialized to None and will be loaded by the load_assets function.
