@@ -50,8 +50,8 @@ class GameController:
                 if e.value[1] == -1: return f"hat_{e.hat}_y_-1"
             if e.type == pygame.JOYAXISMOTION:
                 # Axis motion is also unique; we create strings for positive/negative directions
-                if e.value > settings.JOYSTICK_DEADZONE: return f"axis_{e.axis}_pos"
-                if e.value < -settings.JOYSTICK_DEADZONE: return f"axis_{e.axis}_neg"
+                if e.value > settings.joystickDeadzone: return f"axis_{e.axis}_pos"
+                if e.value < -settings.joystickDeadzone: return f"axis_{e.axis}_neg"
             return None
 
         input_str = get_input_string(event)

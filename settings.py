@@ -51,7 +51,7 @@ xOffset = 0
 yOffset = 0
 
 startSpeed = 15
-JOYSTICK_DEADZONE = 0.5
+joystickDeadzone = 0.5
 
 # pygame.RESIZABLE allows the user to change the window size.
 # pygame.DOUBLEBUF is recommended for smoother rendering.

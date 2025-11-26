@@ -177,8 +177,8 @@ def get_controller_input_string(event):
         if event.value[1] == 1: return f"hat_{event.hat}_y_1"
         if event.value[1] == -1: return f"hat_{event.hat}_y_-1"
     if event.type == pygame.JOYAXISMOTION:
-        if event.value > settings.JOYSTICK_DEADZONE: return f"axis_{event.axis}_pos"
-        if event.value < -settings.JOYSTICK_DEADZONE: return f"axis_{event.axis}_neg"
+        if event.value > settings.joystickDeadzone: return f"axis_{event.axis}_pos"
+        if event.value < -settings.joystickDeadzone: return f"axis_{event.axis}_neg"
         return None
     return None
 
